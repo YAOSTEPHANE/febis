@@ -1,0 +1,236 @@
+--- PAGE 1 ---
+NOYA  INDUSTRIES  ·   Cahier  des  Charges  Technique  —  Plateforme  Digitale  FEBIS   ·   Usage  interne  /  Développeur 
+ CAHIER  DES  CHARGES  TECHNIQUE 
+PLATEFORME  DIGITALE  FEBIS 
+Spécifications  fonctionnelles  et  techniques  —  pour  démarrage  du  développement 
+ 
+Client FEBIS 
+Référence NYI-CDC-FEBIS-2026-001  
+Destinataire Équipe  technique  Noya 
+ 
+1.  Contexte  du  projet FEBIS  est  une  entreprise  multi-activités  (résidences  meublées,  BTP,  événementiel,  boutique)  souhaitant  
+centraliser
+ 
+l’ensemble
+ 
+de
+ 
+sa
+ 
+gestion,
+ 
+ses
+ 
+ventes
+ 
+et
+ 
+son
+ 
+suivi
+ 
+administratif
+ 
+dans
+ 
+un
+ 
+écosystème
+ 
+numérique
+ 
+unique.
+ 
+Un
+ 
+premier
+ 
+volet
+ 
+(site
+ 
+vitrine
+ 
++
+ 
+système
+ 
+de
+ 
+réservation
+ 
+de
+ 
+base)
+ 
+a
+ 
+déjà
+ 
+été
+ 
+livré
+ 
+et
+ 
+sera
+ 
+reconstruit
+ 
+dans
+ 
+le
+ 
+cadre
+ 
+de
+ 
+cette
+ 
+nouvelle
+ 
+plateforme.
+ 
+2.  Objectif  général Créer  un  écosystème  numérique  unifié  pour  centraliser  la  gestion,  les  ventes  et  le  suivi  administratif  des  
+activités
+ 
+de
+ 
+FEBIS
+ 
+en
+ 
+Côte
+ 
+d’Ivoire,
+ 
+avec
+ 
+une
+ 
+base
+ 
+de
+ 
+données
+ 
+centrale
+ 
+unique
+ 
+évitant
+ 
+toute
+ 
+duplication
+ 
+(clients,
+ 
+paiements,
+ 
+stocks,
+ 
+RH).
+ 
+3.  Architecture  et  principes  techniques 
+CRITÈRE EXIGENCE 
+Accès Plateforme  web  responsive  —  mobile,  tablette,  PC  
+Base  de  données  
+Unique  et  centrale  —  aucune  duplication  entre  modules  (clients,  paiements,  stocks,  RH  partagés)  
+Sécurité 
+HTTPS  obligatoire  ·  mots  de  passe  chiffrés  (hachage)  ·  gestion  fine  des  droits  d’accès  par  profil  
+Rôles  utilisateurs  
+4  profils  distincts  :  Admin  ·  Direction  ·  Compta  ·  Opérationnels  —  permissions  spécifiques  par  profil  et  par  module  
+ 
+Recommandation  stack  —  cohérente  avec  l’existant  Noya  :  Next.js  14  (front)  +  Strapi  v4  (back/API)  +  PostgreSQL  
+(données
+ 
+relationnelles
+ 
+—
+ 
+transactions,
+ 
+stocks,
+ 
+paiements).
+ 
+À
+ 
+confirmer
+ 
+en
+ 
+équipe
+ 
+technique
+ 
+selon
+ 
+les
+ 
+contraintes
+ 
+de
+ 
+délai.
+  
+Noya  Industries  SARLU  ·  RCCM  CI-ABJ-03-2021-B13-02829  ·  Riviera,  École  Belle  Fontaine,  Abidjan,  Côte  d’Ivoire 
+--- PAGE 2 ---
+NOYA  INDUSTRIES  ·   Cahier  des  Charges  Technique  —  Plateforme  Digitale  FEBIS   ·   Usage  interne  /  Développeur 
+PÉRIMÈTRE  FONCTIONNEL  —  PHASE  1  (PRIORITAIRE)  
+4.1  —  Site  vitrine ▸   Présentation  des  activités  FEBIS  (Résidences,  BTP,  Événementiel,  Boutique)  ▸   Formulaire  de  contact   
+4.2  —  Module  Résidences  (réservations) ▸   Fiches  logements  (photos,  description,  tarifs)  ▸   Calendrier  de  disponibilité  :  dispo  /  réservé  /  maintenance  ▸   Processus  complet  :  demande  →  réservation  →  acompte  →  check-in/out  →  état  des  lieux  À  valider  en  cadrage  :  règles  précises  d’annulation  et  de  remboursement.   
+4.3  —  Module  BTP ▸   Gestion  des  prospects  et  opportunités  commerciales  ▸   Génération  de  devis  ▸   Transformation  devis  →  contrat  ▸   Suivi  d’avancement  du  projet  par  étapes  (workflow  personnalisable  selon  le  processus  FEBIS)  ▸   Suivi  de  livraison  finale  À  valider  en  cadrage  :  étapes  exactes  du  workflow  BTP  interne  à  FEBIS.   
+4.4  —  Module  Événementiel ▸   Catalogue  du  matériel  avec  disponibilité  en  temps  réel  ▸   Gestion  des  prix  et  des  cautions  par  article  ▸   Génération  de  devis  de  location  ▸   Suivi  des  sorties  et  retours  de  matériel  ▸   Gestion  des  dommages  et  pénalités  associées   
+4.5  —  Module  Boutique ▸   Gestion  des  produits  :  fiches,  stock,  prix  ▸   Gestion  des  variantes  (taille,  couleur,  etc.)  ▸   Tunnel  de  commande  client  (panier  →  commande)  ▸   Historique  des  ventes   
+Noya  Industries  SARLU  ·  RCCM  CI-ABJ-03-2021-B13-02829  ·  Riviera,  École  Belle  Fontaine,  Abidjan,  Côte  d’Ivoire 
+--- PAGE 3 ---
+NOYA  INDUSTRIES  ·   Cahier  des  Charges  Technique  —  Plateforme  Digitale  FEBIS   ·   Usage  interne  /  Développeur 
+4.6  —  CRM  (transversal) ▸   Base  de  données  clients  unique,  partagée  entre  tous  les  modules  métiers  ▸   Historique  complet  des  interactions  par  client  ▸   Lien  automatique  avec  les  factures  et  projets  associés  au  client  ▸   Recherche  et  filtrage  des  clients   
+4.7  —  Finance  (transversal) ▸   Suivi  des  revenus  par  activité  (Résidences,  BTP,  Événementiel,  Boutique)  ▸   Suivi  des  dépenses  par  activité  ▸   Gestion  des  paiements  multi-canaux  :  Mobile  Money,  virement,  espèces  ▸   État  des  impayés   
+4.8  —  Facturation  automatique  (transversal) ▸   Génération  automatique  de  devis  en  PDF  ▸   Génération  automatique  de  factures  en  PDF  ▸   Génération  automatique  de  reçus  en  PDF  ▸   Génération  automatique  de  contrats  en  PDF  ▸   Génération  de  rapports   
+4.9  —  Intégration  des  paiements ▸   Intégration  API  Mobile  Money  locale  (opérateur  à  confirmer  en  cadrage  —  probable  Wave,  cohérent  avec  
+l’existant
+ 
+Noya)
+ ▸   Enregistrement  des  paiements  par  virement  bancaire  ▸   Enregistrement  des  paiements  en  espèces   
+4.10  —  Espace  Administrateur  &  Direction ▸   Tableau  de  bord  temps  réel  :  CA,  taux  d’occupation,  stock,  projets  en  cours  ▸   Notifications  automatiques  :  Email  /  WhatsApp  /  SMS  (réservations,  paiements,  échéances,  stocks  faibles)  ▸   Moteur  de  recherche  interne  multi-critères  ▸   Gestion  des  accès  par  profil  (Admin,  Direction,  Compta,  Opérationnels)  ▸   Système  de  sauvegarde  automatique   
+Noya  Industries  SARLU  ·  RCCM  CI-ABJ-03-2021-B13-02829  ·  Riviera,  École  Belle  Fontaine,  Abidjan,  Côte  d’Ivoire 
+--- PAGE 4 ---
+NOYA  INDUSTRIES  ·   Cahier  des  Charges  Technique  —  Plateforme  Digitale  FEBIS   ·   Usage  interne  /  Développeur 
+PÉRIMÈTRE  FONCTIONNEL  —  PHASE  2  (EXTENSION)  
+5.1  —  Module  RH ▸   Dossiers  employés  numériques  ▸   Gestion  des  contrats  de  travail  ▸   Suivi  des  présences  ▸   Suivi  des  congés  ▸   Stockage  des  documents  administratifs  liés  au  personnel   
+6.  Livrables  attendus ▸   Plateforme  fonctionnelle,  déployée  et  opérationnelle  ▸   Codes  sources  complets  ▸   Base  de  données  ▸   Documentation  technique  (architecture,  endpoints,  modèle  de  données)  ▸   Documentation  utilisateur  ▸   Formation  des  utilisateurs  clés  FEBIS  avant  mise  en  production   
+Rappel  propriété  intellectuelle  :  FEBIS  doit  rester  propriétaire  exclusive  du  code,  des  données  et  de  l’accès  aux  
+serveurs
+ 
+dès
+ 
+la
+ 
+livraison
+ 
+finale.
+  
+7.  Ordre  de  développement  recommandé 
+ORDRE BRIQUE JUSTIFICATION 
+1 
+Base  de  données  centrale  +  Auth  +  gestion  des  accès  
+Fondation  technique  commune  à  tous  les  modules  
+2  CRM  +  Facturation  +  Paiements  
+Modules  transversaux  utilisés  par  tous  les  pôles  métiers  
+3 Résidences  +  BTP  
+Pôles  métiers  prioritaires  (réservation  &  suivi  projet)  
+4  Événementiel  +  Boutique  
+Pôles  métiers  secondaires,  logique  catalogue  similaire  
+5 Dashboard  Direction  +  Notifications  
+Couche  de  pilotage,  nécessite  les  modules  précédents  opérationnels  
+6  Module  RH  (Phase  2)  Extension,  indépendante  des  autres  modules  
+ 
+8.  Points  à  valider  avant/pendant  le  développement ▸   Règles  précises  d’annulation  et  de  remboursement  (module  Résidences)  ▸   Workflow  exact  des  étapes  de  suivi  BTP  (prospect  →  livraison)  ▸   Opérateur(s)  Mobile  Money  à  intégrer  et  disponibilité  de  leur  API  ▸   Canaux  de  notification  prioritaires  (Email  /  WhatsApp  /  SMS)  et  fournisseur  retenu  ▸   Volume  de  données  actuel  (nombre  de  logements,  clients,  produits)  pour  dimensionner  l’infrastructure   
+Noya  Industries  SARLU  ·  RCCM  CI-ABJ-03-2021-B13-02829  ·  Riviera,  École  Belle  Fontaine,  Abidjan,  Côte  d’Ivoire 
+--- PAGE 5 ---
+NOYA  INDUSTRIES  ·   Cahier  des  Charges  Technique  —  Plateforme  Digitale  FEBIS   ·   Usage  interne  /  Développeur 
+Contact  projet Yannick  Abraham  —  Pilotage  &  relation  client  ·  +225  07  77  22  51  85  ·  contact@padde-ci.ci  
+Noya  Industries  SARLU  ·  RCCM  CI-ABJ-03-2021-B13-02829  ·  Riviera,  École  Belle  Fontaine,  Abidjan,  Côte  d’Ivoire 
