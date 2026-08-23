@@ -1,8 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/cn";
 
-export function LogoutButton() {
+export function LogoutButton({ className }: { className?: string }) {
   const router = useRouter();
 
   async function logout() {
@@ -15,7 +16,10 @@ export function LogoutButton() {
     <button
       type="button"
       onClick={logout}
-      className="rounded-full border border-febis-ink/15 bg-white/70 px-4 py-2 text-sm font-semibold text-febis-ink hover:border-febis-red/40"
+      className={cn(
+        "inline-flex items-center rounded-full border border-febis-ink/15 bg-white/80 px-4 py-2 text-sm font-semibold text-febis-ink transition hover:border-febis-red/40 hover:text-febis-red",
+        className,
+      )}
     >
       Déconnexion
     </button>

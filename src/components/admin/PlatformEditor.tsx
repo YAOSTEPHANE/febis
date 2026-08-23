@@ -20,7 +20,7 @@ export function PlatformEditor({ initial }: { initial: PlatformContent }) {
         title="Plateforme"
         description="Bloc transversal CRM / finance / facturation / pilotage."
       />
-      <form onSubmit={save} className="space-y-4 rounded-2xl border border-febis-ink/8 bg-white/70 p-6">
+      <form onSubmit={save} className="space-y-4 admin-panel p-6">
         <label className="block text-sm font-semibold text-febis-ink/80">
           Sur-titre
           <input

@@ -108,7 +108,7 @@ export function TestimonialsAdminEditor({
             </button>
           ))}
         </div>
-        <div className="space-y-3 rounded-2xl border border-febis-ink/8 bg-white/70 p-5">
+        <div className="space-y-3 admin-panel p-5">
           <label className="block text-sm font-semibold">
             Nom
             <input

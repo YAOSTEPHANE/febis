@@ -24,7 +24,7 @@ export function PolesEditor({ initial }: { initial: PoleContent[] }) {
         {data.map((pole, index) => (
           <div
             key={pole.id}
-            className="space-y-3 rounded-2xl border border-febis-ink/8 bg-white/70 p-4"
+            className="space-y-3 admin-panel p-4"
           >
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="text-sm font-semibold text-febis-ink/80">

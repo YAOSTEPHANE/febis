@@ -24,7 +24,7 @@ export function CategoriesEditor({ initial }: { initial: CategoryContent[] }) {
         {data.map((cat, index) => (
           <div
             key={cat.key}
-            className="space-y-3 rounded-2xl border border-febis-ink/8 bg-white/70 p-4"
+            className="space-y-3 admin-panel p-4"
           >
             <p className="text-xs font-bold uppercase tracking-wider text-febis-red">
               {cat.key}

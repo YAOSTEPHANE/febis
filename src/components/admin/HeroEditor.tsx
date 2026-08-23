@@ -20,7 +20,7 @@ export function HeroEditor({ initial }: { initial: HeroContent }) {
         title="Hero"
         description="Premier écran de l’accueil : marque, accroche et boutons d’action."
       />
-      <form onSubmit={save} className="space-y-4 rounded-2xl border border-febis-ink/8 bg-white/70 p-6">
+      <form onSubmit={save} className="admin-panel space-y-4 p-6">
         {(
           [
             ["eyebrow", "Sur-titre"],

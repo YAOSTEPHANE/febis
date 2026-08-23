@@ -723,6 +723,20 @@ body {
   background: #f59e0b;
 }
 
+/* ——— Admin ——— */
+.admin-panel {
+  border-radius: 1.15rem;
+  border: 1px solid rgba(26, 18, 16, 0.08);
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(12px);
+}
+
+.admin-aside {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

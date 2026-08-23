@@ -17,7 +17,7 @@ export default async function AdminResidencesPage() {
           Voir sur le site →
         </Link>
       </div>
-      <div className="overflow-hidden rounded-2xl border border-febis-ink/8 bg-white/70">
+      <div className="admin-panel overflow-hidden">
         <table className="w-full text-left text-sm">
           <thead className="bg-febis-mist/80 text-xs uppercase tracking-wider text-febis-ink/55">
             <tr>

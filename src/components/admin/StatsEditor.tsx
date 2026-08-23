@@ -24,7 +24,7 @@ export function StatsEditor({ initial }: { initial: TrustStat[] }) {
         {data.map((stat, index) => (
           <div
             key={index}
-            className="grid gap-3 rounded-2xl border border-febis-ink/8 bg-white/70 p-4 sm:grid-cols-2"
+            className="grid gap-3 admin-panel p-4 sm:grid-cols-2"
           >
             <label className="text-sm font-semibold text-febis-ink/80">
               Valeur

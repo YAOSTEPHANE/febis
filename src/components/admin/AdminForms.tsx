@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, type ReactNode } from "react";
+import { cn } from "@/lib/cn";
 
 export function AdminSaveButton({
   saving,
@@ -63,32 +64,50 @@ export function AdminNotice({
 }) {
   if (!message && !error) return null;
   return (
-    <p
-      className={
+    <div
+      className={cn(
+        "rounded-xl px-3 py-2 text-sm font-semibold",
         error
-          ? "text-sm font-semibold text-febis-red"
-          : "text-sm font-semibold text-emerald-700"
-      }
+          ? "border border-febis-red/20 bg-febis-red/8 text-febis-red"
+          : "border border-emerald-600/20 bg-emerald-50 text-emerald-800",
+      )}
       role="status"
     >
       {error || message}
-    </p>
+    </div>
   );
 }
 
 export function AdminPageHeader({
   title,
   description,
+  actions,
 }: {
   title: string;
   description: string;
+  actions?: ReactNode;
 }) {
   return (
-    <div className="mb-8">
-      <h1 className="font-display text-3xl font-extrabold text-febis-ink">
-        {title}
-      </h1>
-      <p className="mt-2 max-w-2xl text-febis-ink/60">{description}</p>
+    <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0">
+        <h1 className="font-display text-3xl font-extrabold tracking-tight text-febis-ink">
+          {title}
+        </h1>
+        <p className="mt-2 max-w-2xl text-febis-ink/55">{description}</p>
+      </div>
+      {actions ? <div className="shrink-0">{actions}</div> : null}
     </div>
   );
+}
+
+export function AdminPanel({
+  children,
+  className,
+  as: Tag = "div",
+}: {
+  children: ReactNode;
+  className?: string;
+  as?: "div" | "form" | "section";
+}) {
+  return <Tag className={cn("admin-panel", className)}>{children}</Tag>;
 }

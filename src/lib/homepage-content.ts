@@ -191,72 +191,110 @@ export const HOMEPAGE_DEFAULTS: HomepagePayloadMap = {
   platform: DEFAULT_PLATFORM,
 };
 
+export type AdminNavGroup = "overview" | "vitrine" | "activites" | "inbox";
+
 export type AdminNavItem = {
   href: string;
   label: string;
   description: string;
+  group: AdminNavGroup;
+  mark: string;
 };
+
+export const ADMIN_NAV_GROUPS: {
+  id: AdminNavGroup;
+  label: string;
+}[] = [
+  { id: "overview", label: "Pilotage" },
+  { id: "vitrine", label: "Vitrine" },
+  { id: "activites", label: "Activités" },
+  { id: "inbox", label: "Demandes" },
+];
 
 export const ADMIN_NAV: AdminNavItem[] = [
   {
     href: "/admin/dashboard",
     label: "Vue d’ensemble",
     description: "Compteurs et accès rapide",
+    group: "overview",
+    mark: "VO",
   },
   {
     href: "/admin/dashboard/hero",
     label: "Hero",
     description: "Titre, CTA, marque",
+    group: "vitrine",
+    mark: "HE",
   },
   {
     href: "/admin/dashboard/categories",
     label: "Catégories",
     description: "Types de logements",
+    group: "vitrine",
+    mark: "CA",
   },
   {
     href: "/admin/dashboard/stats",
     label: "Bandeau stats",
     description: "Indicateurs confiance",
-  },
-  {
-    href: "/admin/dashboard/residences",
-    label: "Résidences",
-    description: "Logements à la une",
-  },
-  {
-    href: "/admin/dashboard/evenementiel",
-    label: "Événementiel",
-    description: "Catalogue matériel",
-  },
-  {
-    href: "/admin/dashboard/travaux",
-    label: "Travaux",
-    description: "Portfolio BTP & events",
+    group: "vitrine",
+    mark: "ST",
   },
   {
     href: "/admin/dashboard/poles",
     label: "Pôles",
     description: "Quatre activités",
+    group: "vitrine",
+    mark: "PÔ",
   },
   {
     href: "/admin/dashboard/blog",
     label: "Blog",
     description: "Articles",
+    group: "vitrine",
+    mark: "BL",
   },
   {
     href: "/admin/dashboard/temoignages",
     label: "Témoignages",
     description: "Avis clients",
+    group: "vitrine",
+    mark: "TÉ",
   },
   {
     href: "/admin/dashboard/plateforme",
     label: "Plateforme",
     description: "Modules transverses",
+    group: "vitrine",
+    mark: "PL",
+  },
+  {
+    href: "/admin/dashboard/residences",
+    label: "Résidences",
+    description: "Logements à la une",
+    group: "activites",
+    mark: "RÉ",
+  },
+  {
+    href: "/admin/dashboard/evenementiel",
+    label: "Événementiel",
+    description: "Catalogue matériel",
+    group: "activites",
+    mark: "ÉV",
+  },
+  {
+    href: "/admin/dashboard/travaux",
+    label: "Travaux",
+    description: "Portfolio BTP & events",
+    group: "activites",
+    mark: "TR",
   },
   {
     href: "/admin/dashboard/contacts",
     label: "Contacts",
     description: "Messages vitrine",
+    group: "inbox",
+    mark: "CO",
   },
 ];
 

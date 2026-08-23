@@ -39,16 +39,13 @@ export default function AdminContactsPage() {
       {loading ? (
         <p className="text-sm text-febis-ink/55">Chargement…</p>
       ) : contacts.length === 0 ? (
-        <p className="rounded-2xl border border-febis-ink/8 bg-white/70 p-6 text-sm text-febis-ink/55">
+        <p className="admin-panel p-6 text-sm text-febis-ink/55">
           Aucun contact pour le moment.
         </p>
       ) : (
         <div className="space-y-3">
           {contacts.map((c) => (
-            <article
-              key={c.id}
-              className="rounded-2xl border border-febis-ink/8 bg-white/70 p-5"
-            >
+            <article key={c.id} className="admin-panel p-5">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <p className="font-semibold text-febis-ink">{c.name}</p>
