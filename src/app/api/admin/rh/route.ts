@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
+import { can } from "@/lib/rbac";
 import {
   createEmployee,
+  getRhOverview,
   listEmployees,
   EMPLOYEE_DEPARTMENTS,
   EMPLOYEE_STATUSES,
@@ -10,24 +12,31 @@ import type { EmployeeDepartment, EmployeeStatus } from "@/lib/types";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+  if (!session || !can(session, "operations")) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
 
   const { searchParams } = request.nextUrl;
+  if (searchParams.get("overview") === "1") {
+    return NextResponse.json({ overview: await getRhOverview() });
+  }
+
   const employees = await listEmployees({
     q: searchParams.get("q") ?? undefined,
     department: searchParams.get("department") ?? undefined,
     status: (searchParams.get("status") ?? "all") as EmployeeStatus | "all",
   });
 
-  return NextResponse.json({ employees });
+  return NextResponse.json({
+    employees,
+    overview: await getRhOverview(),
+  });
 }
 
 export async function POST(request: NextRequest) {
   const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+  if (!session || !can(session, "operations")) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
 
   let body: {

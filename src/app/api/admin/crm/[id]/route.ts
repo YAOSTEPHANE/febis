@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
+import { can } from "@/lib/rbac";
 import {
-  addClientNote,
+  addClientInteraction,
   getClientDetail,
   updateClientProfile,
 } from "@/lib/crm";
-import type { ClientStatus } from "@/lib/types";
+import type { Activity, ClientStatus, InteractionType } from "@/lib/types";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_request: NextRequest, { params }: Params) {
   const session = await getSession();
-  if (!session) {
+  if (!session || !can(session, "crm")) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   }
 
@@ -26,7 +27,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   const session = await getSession();
-  if (!session) {
+  if (!session || !can(session, "crm")) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   }
 
@@ -38,8 +39,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     company?: string;
     notes?: string;
     status?: ClientStatus;
-    tags?: string[];
+    tags?: string[] | string;
     note?: string;
+    interactionType?: string;
+    interactionTitle?: string;
+    interactionActivity?: string;
   };
 
   try {
@@ -49,14 +53,28 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 
   if (body.note?.trim()) {
-    const ok = await addClientNote(id, body.note);
+    const type = (body.interactionType ?? "note") as InteractionType | string;
+    const ok = await addClientInteraction(id, {
+      type,
+      title: body.interactionTitle,
+      message: body.note,
+      activity: (body.interactionActivity as Activity | "general") || "general",
+    });
     if (!ok) {
       return NextResponse.json(
-        { error: "Impossible d’ajouter la note" },
+        { error: "Impossible d’ajouter l’interaction" },
         { status: 400 },
       );
     }
   }
+
+  const tags =
+    typeof body.tags === "string"
+      ? body.tags
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean)
+      : body.tags;
 
   const client = await updateClientProfile(id, {
     name: body.name,
@@ -65,7 +83,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     company: body.company,
     notes: body.notes,
     status: body.status,
-    tags: body.tags,
+    tags,
   });
 
   if (!client) {

@@ -8,12 +8,14 @@ import {
   employeeStatusLabel,
   EMPLOYEE_DEPARTMENTS,
   EMPLOYEE_STATUSES,
+  type RhOverview,
   type SerializedEmployee,
 } from "@/lib/rh-shared";
 import { cn } from "@/lib/cn";
 
 export function RhAdminClient() {
   const [employees, setEmployees] = useState<SerializedEmployee[]>([]);
+  const [overview, setOverview] = useState<RhOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [department, setDepartment] = useState("all");
@@ -33,10 +35,12 @@ export function RhAdminClient() {
       const res = await fetch(`/api/admin/rh?${params.toString()}`);
       const json = (await res.json()) as {
         employees?: SerializedEmployee[];
+        overview?: RhOverview;
         error?: string;
       };
       if (!res.ok) throw new Error(json.error ?? "Erreur chargement");
       setEmployees(json.employees ?? []);
+      setOverview(json.overview ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur");
     } finally {
@@ -88,8 +92,30 @@ export function RhAdminClient() {
     <>
       <AdminPageHeader
         title="Module RH"
-        description="Dossiers employés, contrats, présences, congés et documents administratifs."
+        description="Dossiers employés numériques, contrats de travail, présences, congés et documents administratifs."
       />
+
+      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        {(
+          [
+            ["Dossiers", overview?.employeesTotal ?? 0],
+            ["Actifs", overview?.employeesActive ?? 0],
+            ["Présences (jour)", overview?.attendanceToday ?? 0],
+            ["Congés en attente", overview?.leavesPending ?? 0],
+            ["Contrats ≤ 60 j", overview?.contractsExpiring ?? 0],
+            ["Documents", overview?.documentsTotal ?? 0],
+          ] as const
+        ).map(([label, value]) => (
+          <div key={label} className="admin-panel admin-panel-premium p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-febis-gold-deep">
+              {label}
+            </p>
+            <p className="mt-1 font-display text-2xl font-extrabold text-febis-ink">
+              {value}
+            </p>
+          </div>
+        ))}
+      </div>
 
       <div className="mb-6 grid gap-4 lg:grid-cols-[1.35fr_1fr]">
         <div className="admin-panel admin-panel-premium p-5">

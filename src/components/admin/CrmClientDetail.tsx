@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { AdminPageHeader, AdminSaveButton } from "@/components/admin/AdminForms";
 import type {
@@ -12,10 +12,13 @@ import type {
 } from "@/lib/crm-shared";
 import {
   activityLabel,
+  clientStatusLabel,
   formatXof,
   interactionTypeLabel,
+  invoiceStatusLabel,
+  projectStatusLabel,
 } from "@/lib/crm-shared";
-import { CLIENT_STATUSES } from "@/lib/types";
+import { ACTIVITIES, CLIENT_STATUSES } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
 type DetailPayload = {
@@ -25,34 +28,7 @@ type DetailPayload = {
   projects: SerializedProject[];
 };
 
-function statusLabel(status: string) {
-  switch (status) {
-    case "prospect":
-      return "Prospect";
-    case "actif":
-      return "Actif";
-    case "inactif":
-      return "Inactif";
-    case "brouillon":
-      return "Brouillon";
-    case "emise":
-      return "Émise";
-    case "payee":
-      return "Payée";
-    case "annulee":
-      return "Annulée";
-    case "ouvert":
-      return "Ouvert";
-    case "en_cours":
-      return "En cours";
-    case "termine":
-      return "Terminé";
-    case "annule":
-      return "Annulé";
-    default:
-      return status;
-  }
-}
+const INTERACTION_TYPES = ["note", "appel", "email"] as const;
 
 export function CrmClientDetail() {
   const params = useParams<{ id: string }>();
@@ -62,7 +38,10 @@ export function CrmClientDetail() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [note, setNote] = useState("");
+  const [interactionType, setInteractionType] = useState<string>("note");
   const [message, setMessage] = useState("");
+  const [filterActivity, setFilterActivity] = useState("all");
+  const [filterType, setFilterType] = useState("all");
 
   async function load() {
     setLoading(true);
@@ -84,6 +63,15 @@ export function CrmClientDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  const filteredInteractions = useMemo(() => {
+    if (!detail) return [];
+    return detail.interactions.filter((ix) => {
+      if (filterActivity !== "all" && ix.activity !== filterActivity) return false;
+      if (filterType !== "all" && ix.type !== filterType) return false;
+      return true;
+    });
+  }, [detail, filterActivity, filterType]);
+
   async function onSaveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!detail) return;
@@ -102,7 +90,15 @@ export function CrmClientDetail() {
           company: data.get("company"),
           notes: data.get("notes"),
           status: data.get("status"),
+          tags: data.get("tags"),
           note: note.trim() || undefined,
+          interactionType,
+          interactionTitle:
+            interactionType === "appel"
+              ? "Appel"
+              : interactionType === "email"
+                ? "Email"
+                : "Note interne",
         }),
       });
       const json = (await res.json()) as DetailPayload & { error?: string };
@@ -124,21 +120,26 @@ export function CrmClientDetail() {
   if (!detail) {
     return (
       <div>
-        <p className="text-sm font-semibold text-febis-red">{error || "Client introuvable"}</p>
-        <Link href="/admin/dashboard/crm" className="mt-4 inline-block text-sm font-bold text-febis-red">
+        <p className="text-sm font-semibold text-febis-red">
+          {error || "Client introuvable"}
+        </p>
+        <Link
+          href="/admin/dashboard/crm"
+          className="mt-4 inline-block text-sm font-bold text-febis-red"
+        >
           ← Retour CRM
         </Link>
       </div>
     );
   }
 
-  const { client, interactions, invoices, projects } = detail;
+  const { client, invoices, projects } = detail;
 
   return (
     <>
       <AdminPageHeader
         title={client.name}
-        description="Historique complet, factures et projets associés à ce client."
+        description="Historique complet, factures et projets associés automatiquement."
         actions={
           <Link
             href="/admin/dashboard/crm"
@@ -159,8 +160,16 @@ export function CrmClientDetail() {
           </span>
         ))}
         <span className="rounded-md bg-febis-mist px-2.5 py-1 text-[11px] font-bold text-febis-ink/60">
-          {statusLabel(client.status)}
+          {clientStatusLabel(client.status)}
         </span>
+        {client.tags.map((t) => (
+          <span
+            key={t}
+            className="rounded-md bg-febis-gold-deep/10 px-2.5 py-1 text-[11px] font-bold text-febis-gold-deep"
+          >
+            {t}
+          </span>
+        ))}
       </div>
 
       {(error || message) && (
@@ -177,7 +186,10 @@ export function CrmClientDetail() {
       )}
 
       <div className="grid gap-5 xl:grid-cols-[1fr_1.1fr]">
-        <form onSubmit={onSaveProfile} className="admin-panel admin-panel-premium space-y-3 p-5">
+        <form
+          onSubmit={onSaveProfile}
+          className="admin-panel admin-panel-premium space-y-3 p-5"
+        >
           <p className="font-display text-lg font-bold text-febis-ink">Profil</p>
           <label className="block text-sm font-semibold text-febis-ink/80">
             Nom
@@ -214,6 +226,15 @@ export function CrmClientDetail() {
             />
           </label>
           <label className="block text-sm font-semibold text-febis-ink/80">
+            Tags (virgules)
+            <input
+              name="tags"
+              className="field-premium mt-2"
+              defaultValue={client.tags.join(", ")}
+              placeholder="vip, abidjan…"
+            />
+          </label>
+          <label className="block text-sm font-semibold text-febis-ink/80">
             Statut
             <select
               name="status"
@@ -222,7 +243,7 @@ export function CrmClientDetail() {
             >
               {CLIENT_STATUSES.map((s) => (
                 <option key={s} value={s}>
-                  {statusLabel(s)}
+                  {clientStatusLabel(s)}
                 </option>
               ))}
             </select>
@@ -235,35 +256,91 @@ export function CrmClientDetail() {
               defaultValue={client.notes}
             />
           </label>
-          <label className="block text-sm font-semibold text-febis-ink/80">
-            Ajouter une interaction (note)
+
+          <div className="rounded-xl border border-febis-ink/8 bg-febis-mist/40 p-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-febis-gold-deep">
+              Nouvelle interaction
+            </p>
+            <select
+              className="field-premium mt-2"
+              value={interactionType}
+              onChange={(e) => setInteractionType(e.target.value)}
+            >
+              {INTERACTION_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {interactionTypeLabel(t)}
+                </option>
+              ))}
+            </select>
             <textarea
               className="field-premium mt-2 min-h-20"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Compte-rendu d’appel, relance…"
+              placeholder="Compte-rendu d’appel, relance email…"
             />
-          </label>
+          </div>
+
           <AdminSaveButton saving={saving} label="Enregistrer la fiche" />
         </form>
 
         <div className="space-y-5">
           <section className="admin-panel admin-panel-premium p-5">
-            <p className="font-display text-lg font-bold text-febis-ink">
-              Historique ({interactions.length})
-            </p>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <p className="font-display text-lg font-bold text-febis-ink">
+                Historique ({filteredInteractions.length}/
+                {detail.interactions.length})
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <select
+                  className="field-premium py-1.5 text-xs"
+                  value={filterActivity}
+                  onChange={(e) => setFilterActivity(e.target.value)}
+                >
+                  <option value="all">Tous modules</option>
+                  <option value="general">Général</option>
+                  {ACTIVITIES.map((a) => (
+                    <option key={a} value={a}>
+                      {activityLabel(a)}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="field-premium py-1.5 text-xs"
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                >
+                  <option value="all">Tous types</option>
+                  {[
+                    "contact_form",
+                    "reservation_demande",
+                    "event_quote",
+                    "shop_order",
+                    "projet",
+                    "facture",
+                    "note",
+                    "appel",
+                    "email",
+                  ].map((t) => (
+                    <option key={t} value={t}>
+                      {interactionTypeLabel(t)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
             <ul className="mt-4 max-h-[420px] space-y-2 overflow-y-auto">
-              {interactions.length === 0 ? (
+              {filteredInteractions.length === 0 ? (
                 <li className="text-sm text-febis-ink/50">Aucune interaction.</li>
               ) : (
-                interactions.map((ix) => (
+                filteredInteractions.map((ix) => (
                   <li
                     key={ix.id}
                     className="rounded-xl border border-febis-ink/6 bg-white/70 px-3.5 py-3"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-xs font-bold uppercase tracking-wide text-febis-red">
-                        {interactionTypeLabel(ix.type)}
+                        {interactionTypeLabel(ix.type)} ·{" "}
+                        {activityLabel(ix.activity)}
                       </span>
                       <span className="text-[11px] text-febis-ink/40">
                         {new Date(ix.at).toLocaleString("fr-FR")}
@@ -273,6 +350,14 @@ export function CrmClientDetail() {
                       {ix.title || activityLabel(ix.activity)}
                     </p>
                     <p className="mt-0.5 text-sm text-febis-ink/60">{ix.message}</p>
+                    {ix.href ? (
+                      <Link
+                        href={ix.href}
+                        className="mt-1 inline-block text-xs font-bold text-febis-gold-deep hover:underline"
+                      >
+                        Ouvrir la source →
+                      </Link>
+                    ) : null}
                   </li>
                 ))
               )}
@@ -286,7 +371,8 @@ export function CrmClientDetail() {
             <ul className="mt-3 space-y-2">
               {projects.length === 0 ? (
                 <li className="text-sm text-febis-ink/50">
-                  Aucun projet — créés auto depuis réservations, devis, commandes.
+                  Aucun projet — créés auto depuis réservations, devis, BTP,
+                  commandes.
                 </li>
               ) : (
                 projects.map((p) => (
@@ -295,10 +381,20 @@ export function CrmClientDetail() {
                     className="flex items-start justify-between gap-3 rounded-xl bg-febis-smoke/70 px-3 py-2.5"
                   >
                     <div>
-                      <p className="text-sm font-semibold text-febis-ink">{p.title}</p>
-                      <p className="text-xs text-febis-ink/45">
-                        {activityLabel(p.activity)} · {statusLabel(p.status)}
+                      <p className="text-sm font-semibold text-febis-ink">
+                        {p.title}
                       </p>
+                      <p className="text-xs text-febis-ink/45">
+                        {activityLabel(p.activity)} · {projectStatusLabel(p.status)}
+                      </p>
+                      {p.href ? (
+                        <Link
+                          href={p.href}
+                          className="text-xs font-bold text-febis-gold-deep hover:underline"
+                        >
+                          Voir →
+                        </Link>
+                      ) : null}
                     </div>
                     <p className="text-sm font-bold text-febis-red">
                       {p.amount != null ? formatXof(p.amount) : "—"}
@@ -329,8 +425,17 @@ export function CrmClientDetail() {
                         {inv.number}
                       </p>
                       <p className="text-xs text-febis-ink/45">
-                        {inv.title} · {statusLabel(inv.status)}
+                        {inv.title} · {invoiceStatusLabel(inv.status)} ·{" "}
+                        {activityLabel(inv.activity)}
                       </p>
+                      {inv.href ? (
+                        <Link
+                          href={inv.href}
+                          className="text-xs font-bold text-febis-gold-deep hover:underline"
+                        >
+                          Source →
+                        </Link>
+                      ) : null}
                     </div>
                     <p className="text-sm font-bold text-febis-red">
                       {formatXof(inv.amount)}

@@ -13,13 +13,16 @@ import type {
   ProjectStatus,
 } from "@/lib/types";
 import type {
+  CrmStats,
   SerializedClient,
   SerializedInteraction,
   SerializedInvoice,
   SerializedProject,
 } from "@/lib/crm-shared";
+import { crmSourceHref } from "@/lib/crm-shared";
 
 export type {
+  CrmStats,
   SerializedClient,
   SerializedInteraction,
   SerializedInvoice,
@@ -27,9 +30,16 @@ export type {
 } from "@/lib/crm-shared";
 export {
   activityLabel,
+  clientStatusLabel,
+  crmSourceHref,
   formatXof,
   interactionTypeLabel,
+  invoiceStatusLabel,
+  projectStatusLabel,
 } from "@/lib/crm-shared";
+
+/** Historique conservé par fiche client (CDC §4.6) */
+const INTERACTION_HISTORY_LIMIT = 500;
 
 export type ClientTouchInput = {
   name: string;
@@ -61,6 +71,14 @@ function newInteractionId() {
 
 function normalizeEmail(email?: string) {
   return email?.trim().toLowerCase() || undefined;
+}
+
+/** Normalise un téléphone CI / international pour matching unique */
+export function normalizePhone(phone?: string) {
+  if (!phone) return undefined;
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 8) return undefined;
+  return digits;
 }
 
 function toIso(value: Date | string | undefined | null) {
@@ -99,6 +117,7 @@ function serializeInteraction(ix: ClientInteraction): SerializedInteraction {
     refType: ix.refType,
     refId: ix.refId,
     at: toIso(ix.at) ?? new Date(0).toISOString(),
+    href: crmSourceHref(ix.refType, ix.refId),
   };
 }
 
@@ -118,6 +137,7 @@ function serializeInvoice(
     sourceType: doc.sourceType,
     sourceId: doc.sourceId,
     createdAt: toIso(doc.createdAt) ?? new Date(0).toISOString(),
+    href: crmSourceHref(doc.sourceType, doc.sourceId, doc.sourceType),
   };
 }
 
@@ -137,6 +157,7 @@ function serializeProject(
     sourceId: doc.sourceId,
     createdAt: toIso(doc.createdAt) ?? new Date(0).toISOString(),
     updatedAt: toIso(doc.updatedAt) ?? new Date(0).toISOString(),
+    href: crmSourceHref("project", doc.sourceId, doc.sourceType),
   };
 }
 
@@ -153,7 +174,41 @@ async function nextDocumentNumber(db: Db, prefix: string, counterKey: string) {
 }
 
 /**
+ * Recherche un client unique : email > téléphone normalisé > (évite match nom seul).
+ */
+async function findUniqueClient(
+  db: Db,
+  input: { email?: string; phone?: string },
+): Promise<(ClientDoc & { _id: ObjectId }) | null> {
+  const email = normalizeEmail(input.email);
+  if (email) {
+    const byEmail = await db.collection<ClientDoc>("clients").findOne({ email });
+    if (byEmail?._id) {
+      return byEmail as ClientDoc & { _id: ObjectId };
+    }
+  }
+
+  const phoneNorm = normalizePhone(input.phone);
+  if (phoneNorm) {
+    const candidates = await db
+      .collection<ClientDoc>("clients")
+      .find({ phone: { $exists: true, $ne: "" } })
+      .limit(500)
+      .toArray();
+    const match = candidates.find(
+      (c) => c._id && normalizePhone(c.phone) === phoneNorm,
+    );
+    if (match?._id) {
+      return match as ClientDoc & { _id: ObjectId };
+    }
+  }
+
+  return null;
+}
+
+/**
  * Upsert client unique + journalise une interaction (CRM transversal CDC §4.6).
+ * Partagé par résidences, BTP, événementiel, boutique, contact, facturation.
  */
 export async function touchClient(input: ClientTouchInput): Promise<{
   clientId: string | null;
@@ -164,6 +219,7 @@ export async function touchClient(input: ClientTouchInput): Promise<{
 
   const now = new Date();
   const email = normalizeEmail(input.email);
+  const phone = input.phone?.trim() || undefined;
   const activity = input.activity ?? "general";
   const interaction: ClientInteraction = {
     id: newInteractionId(),
@@ -176,14 +232,12 @@ export async function touchClient(input: ClientTouchInput): Promise<{
     at: now,
   };
 
-  const filter: Filter<ClientDoc> = email
-    ? { email }
-    : input.phone
-      ? { phone: input.phone.trim() }
-      : { name: input.name.trim(), email: { $exists: false } };
+  const existing = await findUniqueClient(db, {
+    email,
+    phone,
+  });
 
   const clients = db.collection("clients");
-  const existing = await clients.findOne(filter as never);
 
   if (existing?._id) {
     await clients.updateOne(
@@ -192,10 +246,13 @@ export async function touchClient(input: ClientTouchInput): Promise<{
         $set: {
           name: input.name.trim(),
           ...(email ? { email } : {}),
-          ...(input.phone ? { phone: input.phone.trim() } : {}),
+          ...(phone ? { phone } : {}),
           ...(input.company ? { company: input.company.trim() } : {}),
           ...(input.notes ? { notes: input.notes } : {}),
-          status: existing.status === "inactif" ? "actif" : (existing.status ?? "actif"),
+          status:
+            existing.status === "inactif"
+              ? "actif"
+              : (existing.status ?? "actif"),
           updatedAt: now,
           lastInteractionAt: now,
         },
@@ -204,7 +261,7 @@ export async function touchClient(input: ClientTouchInput): Promise<{
           interactions: {
             $each: [interaction],
             $position: 0,
-            $slice: 200,
+            $slice: INTERACTION_HISTORY_LIMIT,
           },
         },
       } as never,
@@ -215,7 +272,7 @@ export async function touchClient(input: ClientTouchInput): Promise<{
   const doc: ClientDoc = {
     name: input.name.trim(),
     email,
-    phone: input.phone?.trim() || undefined,
+    phone,
     company: input.company?.trim() || undefined,
     notes: input.notes,
     tags: [],
@@ -231,6 +288,9 @@ export async function touchClient(input: ClientTouchInput): Promise<{
   return { clientId: result.insertedId.toString(), persisted: true };
 }
 
+/**
+ * Lien automatique projet + facture au client (idempotent, met à jour si existe).
+ */
 export async function linkProjectAndInvoice(input: {
   clientId: string;
   clientName: string;
@@ -258,7 +318,7 @@ export async function linkProjectAndInvoice(input: {
   let projectId = existingProject?._id
     ? String(existingProject._id)
     : null;
-  let created = false;
+  let projectCreated = false;
 
   if (!existingProject) {
     const project: ProjectDoc = {
@@ -277,7 +337,24 @@ export async function linkProjectAndInvoice(input: {
     };
     const inserted = await db.collection("projects").insertOne({ ...project } as never);
     projectId = inserted.insertedId.toString();
-    created = true;
+    projectCreated = true;
+  } else if (existingProject._id) {
+    await db.collection("projects").updateOne(
+      { _id: new ObjectId(String(existingProject._id)) },
+      {
+        $set: {
+          title: input.title,
+          clientId: input.clientId,
+          clientEmail: normalizeEmail(input.clientEmail),
+          clientName: input.clientName,
+          activity: input.activity,
+          amount: input.amount,
+          ...(input.projectStatus ? { status: input.projectStatus } : {}),
+          updatedAt: now,
+        },
+      },
+    );
+    projectId = String(existingProject._id);
   }
 
   const invoiceSourceType =
@@ -291,6 +368,7 @@ export async function linkProjectAndInvoice(input: {
   let invoiceId = existingInvoice?._id
     ? String(existingInvoice._id)
     : null;
+  let invoiceCreated = false;
 
   if (!existingInvoice) {
     const number = await nextDocumentNumber(db, "FAC", "invoices");
@@ -311,32 +389,73 @@ export async function linkProjectAndInvoice(input: {
     };
     const inserted = await db.collection("invoices").insertOne({ ...invoice } as never);
     invoiceId = inserted.insertedId.toString();
-    created = true;
+    invoiceCreated = true;
+  } else if (existingInvoice._id) {
+    await db.collection("invoices").updateOne(
+      { _id: new ObjectId(String(existingInvoice._id)) },
+      {
+        $set: {
+          clientId: input.clientId,
+          clientEmail: normalizeEmail(input.clientEmail),
+          clientName: input.clientName,
+          activity: input.activity,
+          title: input.title,
+          amount: input.amount,
+          ...(input.invoiceStatus ? { status: input.invoiceStatus } : {}),
+          updatedAt: now,
+        },
+      },
+    );
+    invoiceId = String(existingInvoice._id);
   }
 
-  if (created) {
+  const interactions: ClientInteraction[] = [];
+  if (projectCreated) {
+    interactions.push({
+      id: newInteractionId(),
+      type: "projet",
+      activity: input.activity,
+      title: "Projet lié",
+      message: `${input.title} · ${input.amount} XOF`,
+      refType: "project",
+      refId: input.sourceId,
+      at: now,
+    });
+  }
+  if (invoiceCreated) {
+    interactions.push({
+      id: newInteractionId(),
+      type: "facture",
+      activity: input.activity,
+      title: "Facture liée",
+      message: `${input.title} · ${input.amount} XOF`,
+      refType: "invoice",
+      refId: invoiceId ?? undefined,
+      at: now,
+    });
+  }
+
+  if (interactions.length > 0) {
     await db.collection("clients").updateOne(
       { _id: new ObjectId(input.clientId) },
       {
         $set: { updatedAt: now, lastInteractionAt: now },
+        $addToSet: { modules: input.activity },
         $push: {
           interactions: {
-            $each: [
-              {
-                id: newInteractionId(),
-                type: "facture",
-                activity: input.activity,
-                title: "Facture / projet liés",
-                message: `${input.title} · ${input.amount} XOF`,
-                refType: "invoice",
-                refId: invoiceId ?? undefined,
-                at: now,
-              },
-            ],
+            $each: interactions,
             $position: 0,
-            $slice: 200,
+            $slice: INTERACTION_HISTORY_LIMIT,
           },
         },
+      } as never,
+    );
+  } else {
+    await db.collection("clients").updateOne(
+      { _id: new ObjectId(input.clientId) },
+      {
+        $set: { updatedAt: now },
+        $addToSet: { modules: input.activity },
       } as never,
     );
   }
@@ -361,8 +480,17 @@ export async function listClients(
   const q = filters.q?.trim();
 
   if (q) {
-    const rx = { $regex: q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" };
-    query.$or = [{ name: rx }, { email: rx }, { phone: rx }, { company: rx }];
+    const rx = {
+      $regex: q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+      $options: "i",
+    };
+    query.$or = [
+      { name: rx },
+      { email: rx },
+      { phone: rx },
+      { company: rx },
+      { tags: rx },
+    ];
   }
   if (filters.activity && filters.activity !== "all") {
     query.modules = filters.activity as Activity;
@@ -370,7 +498,7 @@ export async function listClients(
   if (filters.status && filters.status !== "all") {
     query.status = filters.status;
   }
-  if (filters.tag) {
+  if (filters.tag && filters.tag !== "all") {
     query.tags = filters.tag;
   }
 
@@ -378,12 +506,66 @@ export async function listClients(
     .collection<ClientDoc>("clients")
     .find(query)
     .sort({ lastInteractionAt: -1, updatedAt: -1 })
-    .limit(200)
+    .limit(300)
     .toArray();
 
   return rows
     .filter((row): row is ClientDoc & { _id: ObjectId } => Boolean(row._id))
     .map(serializeClient);
+}
+
+export async function listClientTags(): Promise<string[]> {
+  const db = await tryDb();
+  if (!db) return [];
+  const tags = await db.collection("clients").distinct("tags");
+  return tags
+    .filter((t): t is string => typeof t === "string" && t.trim().length > 0)
+    .sort((a, b) => a.localeCompare(b, "fr"));
+}
+
+export async function getCrmStats(): Promise<CrmStats> {
+  const db = await tryDb();
+  if (!db) {
+    return {
+      total: 0,
+      prospects: 0,
+      actifs: 0,
+      inactifs: 0,
+      withInteractions: 0,
+      linkedInvoices: 0,
+      linkedProjects: 0,
+    };
+  }
+
+  const [
+    total,
+    prospects,
+    actifs,
+    inactifs,
+    withInteractions,
+    linkedInvoices,
+    linkedProjects,
+  ] = await Promise.all([
+    db.collection("clients").countDocuments(),
+    db.collection("clients").countDocuments({ status: "prospect" }),
+    db.collection("clients").countDocuments({ status: "actif" }),
+    db.collection("clients").countDocuments({ status: "inactif" }),
+    db.collection("clients").countDocuments({
+      "interactions.0": { $exists: true },
+    }),
+    db.collection("invoices").countDocuments(),
+    db.collection("projects").countDocuments(),
+  ]);
+
+  return {
+    total,
+    prospects,
+    actifs,
+    inactifs,
+    withInteractions,
+    linkedInvoices,
+    linkedProjects,
+  };
 }
 
 export async function getClientDetail(id: string): Promise<{
@@ -416,13 +598,13 @@ export async function getClientDetail(id: string): Promise<{
       .collection<InvoiceDoc>("invoices")
       .find(invoiceFilter)
       .sort({ createdAt: -1 })
-      .limit(50)
+      .limit(100)
       .toArray(),
     db
       .collection<ProjectDoc>("projects")
       .find(projectFilter)
       .sort({ updatedAt: -1 })
-      .limit(50)
+      .limit(100)
       .toArray(),
   ]);
 
@@ -454,19 +636,42 @@ export async function createManualClient(input: {
   const db = await tryDb();
   if (!db) return null;
 
-  const now = new Date();
   const email = normalizeEmail(input.email);
-  if (email) {
-    const existing = await db.collection<ClientDoc>("clients").findOne({ email });
-    if (existing?._id) {
-      return serializeClient(existing as ClientDoc & { _id: ObjectId });
-    }
+  const phone = input.phone?.trim() || undefined;
+
+  const existing = await findUniqueClient(db, { email, phone });
+  if (existing) {
+    // Enrichit la fiche existante plutôt que de créer un doublon
+    const now = new Date();
+    await db.collection("clients").updateOne(
+      { _id: existing._id },
+      {
+        $set: {
+          name: input.name.trim(),
+          ...(email ? { email } : {}),
+          ...(phone ? { phone } : {}),
+          ...(input.company ? { company: input.company.trim() } : {}),
+          ...(input.notes ? { notes: input.notes.trim() } : {}),
+          ...(input.status ? { status: input.status } : {}),
+          updatedAt: now,
+        },
+        ...(input.tags?.length
+          ? { $addToSet: { tags: { $each: input.tags } } }
+          : {}),
+      } as never,
+    );
+    const refreshed = await db
+      .collection("clients")
+      .findOne({ _id: existing._id });
+    if (!refreshed?._id) return serializeClient(existing);
+    return serializeClient(refreshed as ClientDoc & { _id: ObjectId });
   }
 
+  const now = new Date();
   const doc: ClientDoc = {
     name: input.name.trim(),
     email,
-    phone: input.phone?.trim() || undefined,
+    phone,
     company: input.company?.trim() || undefined,
     notes: input.notes?.trim() || undefined,
     tags: input.tags ?? [],
@@ -495,12 +700,17 @@ export async function createManualClient(input: {
   } as ClientDoc & { _id: ObjectId });
 }
 
-export async function addClientNote(
+export async function addClientInteraction(
   clientId: string,
-  message: string,
+  input: {
+    type: InteractionType | string;
+    message: string;
+    title?: string;
+    activity?: Activity | "general";
+  },
 ): Promise<boolean> {
   const db = await tryDb();
-  if (!db || !ObjectId.isValid(clientId) || message.trim().length < 2) {
+  if (!db || !ObjectId.isValid(clientId) || input.message.trim().length < 2) {
     return false;
   }
 
@@ -514,14 +724,25 @@ export async function addClientNote(
     name: typed.name,
     email: typed.email,
     phone: typed.phone,
-    activity: "general",
+    activity: input.activity ?? "general",
     interaction: {
-      type: "note",
-      title: "Note interne",
-      message: message.trim(),
+      type: input.type,
+      title: input.title,
+      message: input.message.trim(),
     },
   });
   return true;
+}
+
+export async function addClientNote(
+  clientId: string,
+  message: string,
+): Promise<boolean> {
+  return addClientInteraction(clientId, {
+    type: "note",
+    title: "Note interne",
+    message,
+  });
 }
 
 export async function updateClientProfile(
@@ -547,7 +768,12 @@ export async function updateClientProfile(
   if (patch.company !== undefined) $set.company = patch.company.trim();
   if (patch.notes !== undefined) $set.notes = patch.notes;
   if (patch.status !== undefined) $set.status = patch.status;
-  if (patch.tags !== undefined) $set.tags = patch.tags;
+  if (patch.tags !== undefined) {
+    $set.tags = patch.tags
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .slice(0, 20);
+  }
 
   await db.collection("clients").updateOne(
     { _id: new ObjectId(clientId) },
@@ -560,4 +786,3 @@ export async function updateClientProfile(
   if (!updated?._id) return null;
   return serializeClient(updated as ClientDoc & { _id: ObjectId });
 }
-

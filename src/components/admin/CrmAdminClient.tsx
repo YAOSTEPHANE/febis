@@ -3,30 +3,20 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState, useTransition } from "react";
 import { AdminPageHeader } from "@/components/admin/AdminForms";
-import type { SerializedClient } from "@/lib/crm-shared";
-import { activityLabel } from "@/lib/crm-shared";
+import type { CrmStats, SerializedClient } from "@/lib/crm-shared";
+import { activityLabel, clientStatusLabel } from "@/lib/crm-shared";
 import { ACTIVITIES, CLIENT_STATUSES } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
-function statusLabel(status: string) {
-  switch (status) {
-    case "prospect":
-      return "Prospect";
-    case "actif":
-      return "Actif";
-    case "inactif":
-      return "Inactif";
-    default:
-      return status;
-  }
-}
-
 export function CrmAdminClient() {
   const [clients, setClients] = useState<SerializedClient[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
+  const [stats, setStats] = useState<CrmStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [activity, setActivity] = useState("all");
   const [status, setStatus] = useState("all");
+  const [tag, setTag] = useState("all");
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -39,19 +29,38 @@ export function CrmAdminClient() {
       if (q.trim()) params.set("q", q.trim());
       if (activity !== "all") params.set("activity", activity);
       if (status !== "all") params.set("status", status);
-      const res = await fetch(`/api/admin/crm?${params.toString()}`);
-      const json = (await res.json()) as {
+      if (tag !== "all") params.set("tag", tag);
+
+      const [listRes, statsRes, tagsRes] = await Promise.all([
+        fetch(`/api/admin/crm?${params.toString()}`),
+        fetch("/api/admin/crm?tab=stats"),
+        fetch("/api/admin/crm?tab=tags"),
+      ]);
+
+      const listJson = (await listRes.json()) as {
         clients?: SerializedClient[];
         error?: string;
       };
-      if (!res.ok) throw new Error(json.error ?? "Erreur chargement");
-      setClients(json.clients ?? []);
+      const statsJson = (await statsRes.json()) as {
+        stats?: CrmStats;
+        error?: string;
+      };
+      const tagsJson = (await tagsRes.json()) as {
+        tags?: string[];
+        error?: string;
+      };
+
+      if (!listRes.ok) throw new Error(listJson.error ?? "Erreur chargement");
+      if (!statsRes.ok) throw new Error(statsJson.error ?? "Erreur stats");
+      setClients(listJson.clients ?? []);
+      setStats(statsJson.stats ?? null);
+      setTags(tagsJson.tags ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur");
     } finally {
       setLoading(false);
     }
-  }, [q, activity, status]);
+  }, [q, activity, status, tag]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -77,11 +86,19 @@ export function CrmAdminClient() {
           phone: data.get("phone"),
           company: data.get("company"),
           status: data.get("status") || "prospect",
+          tags: data.get("tags"),
         }),
       });
-      const json = (await res.json()) as { error?: string };
+      const json = (await res.json()) as {
+        client?: SerializedClient;
+        error?: string;
+      };
       if (!res.ok) throw new Error(json.error ?? "Création impossible");
       event.currentTarget.reset();
+      if (json.client?.id) {
+        window.location.href = `/admin/dashboard/crm/${json.client.id}`;
+        return;
+      }
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur");
@@ -94,20 +111,40 @@ export function CrmAdminClient() {
     <>
       <AdminPageHeader
         title="CRM transversal"
-        description="Base clients unique partagée entre résidences, BTP, événementiel et boutique — historique, factures et projets liés."
+        description="Base clients unique partagée (CDC §4.6) — historique, factures et projets liés automatiquement."
       />
+
+      {stats ? (
+        <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            ["Clients", String(stats.total)],
+            ["Actifs", String(stats.actifs)],
+            ["Projets liés", String(stats.linkedProjects)],
+            ["Factures liées", String(stats.linkedInvoices)],
+          ].map(([label, value]) => (
+            <div key={label} className="admin-panel admin-panel-premium p-4">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-febis-gold-deep">
+                {label}
+              </p>
+              <p className="mt-2 font-display text-2xl font-extrabold text-febis-ink">
+                {value}
+              </p>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       <div className="mb-6 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <div className="admin-panel admin-panel-premium p-5">
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-febis-gold-deep">
             Recherche & filtres
           </p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
-            <label className="sm:col-span-3 block text-sm font-semibold text-febis-ink/80">
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="sm:col-span-2 block text-sm font-semibold text-febis-ink/80">
               Rechercher
               <input
                 className="field-premium mt-2"
-                placeholder="Nom, email, téléphone, société…"
+                placeholder="Nom, email, téléphone, société, tag…"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
               />
@@ -138,25 +175,35 @@ export function CrmAdminClient() {
                 <option value="all">Tous</option>
                 {CLIENT_STATUSES.map((s) => (
                   <option key={s} value={s}>
-                    {statusLabel(s)}
+                    {clientStatusLabel(s)}
                   </option>
                 ))}
               </select>
             </label>
-            <div className="flex items-end">
-              <p className="pb-3 text-sm text-febis-ink/45">
-                {pending || loading
-                  ? "Actualisation…"
-                  : `${clients.length} client${clients.length > 1 ? "s" : ""}`}
-              </p>
-            </div>
+            <label className="block text-sm font-semibold text-febis-ink/80 sm:col-span-2">
+              Tag
+              <select
+                className="field-premium mt-2"
+                value={tag}
+                onChange={(e) => setTag(e.target.value)}
+              >
+                <option value="all">Tous les tags</option>
+                {tags.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="sm:col-span-2 text-sm text-febis-ink/45">
+              {pending || loading
+                ? "Actualisation…"
+                : `${clients.length} client${clients.length > 1 ? "s" : ""}`}
+            </p>
           </div>
         </div>
 
-        <form
-          onSubmit={onCreate}
-          className="admin-panel space-y-3 p-5"
-        >
+        <form onSubmit={onCreate} className="admin-panel space-y-3 p-5">
           <p className="font-display text-lg font-bold text-febis-ink">
             Nouveau client
           </p>
@@ -178,10 +225,15 @@ export function CrmAdminClient() {
             className="field-premium"
             placeholder="Société"
           />
+          <input
+            name="tags"
+            className="field-premium"
+            placeholder="Tags (séparés par des virgules)"
+          />
           <select name="status" className="field-premium" defaultValue="prospect">
             {CLIENT_STATUSES.map((s) => (
               <option key={s} value={s}>
-                {statusLabel(s)}
+                {clientStatusLabel(s)}
               </option>
             ))}
           </select>
@@ -192,6 +244,9 @@ export function CrmAdminClient() {
           >
             {creating ? "Création…" : "Ajouter au CRM"}
           </button>
+          <p className="text-xs text-febis-ink/45">
+            Email / téléphone déjà connus → fusion automatique (pas de doublon).
+          </p>
         </form>
       </div>
 
@@ -223,8 +278,8 @@ export function CrmAdminClient() {
             ) : clients.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-febis-ink/50">
-                  Aucun client. Les formulaires (contact, réservation, devis,
-                  boutique) alimentent automatiquement cette base.
+                  Aucun client. Contact, réservation, devis, boutique et BTP
+                  alimentent automatiquement cette base.
                 </td>
               </tr>
             ) : (
@@ -234,6 +289,18 @@ export function CrmAdminClient() {
                     <p className="font-semibold text-febis-ink">{client.name}</p>
                     {client.company ? (
                       <p className="text-xs text-febis-ink/45">{client.company}</p>
+                    ) : null}
+                    {client.tags.length > 0 ? (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {client.tags.map((t) => (
+                          <span
+                            key={t}
+                            className="rounded bg-febis-gold-deep/10 px-1.5 py-0.5 text-[10px] font-bold text-febis-gold-deep"
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      </div>
                     ) : null}
                   </td>
                   <td className="px-4 py-3 text-febis-ink/70">
@@ -268,7 +335,7 @@ export function CrmAdminClient() {
                           "bg-febis-mist text-febis-ink/55",
                       )}
                     >
-                      {statusLabel(client.status)}
+                      {clientStatusLabel(client.status)}
                     </span>
                   </td>
                   <td className="px-4 py-3 font-semibold text-febis-ink">

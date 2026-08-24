@@ -1,3 +1,4 @@
+import "server-only";
 import { ObjectId, type Db } from "mongodb";
 import { getDb } from "@/lib/mongodb";
 import { formatXof } from "@/lib/crm-shared";
@@ -13,7 +14,8 @@ export type SearchHit = {
     | "equipment"
     | "lodging"
     | "payment"
-    | "blog";
+    | "blog"
+    | "employee";
   title: string;
   subtitle: string;
   href: string;
@@ -129,8 +131,37 @@ export async function adminMultiSearch(input: {
             type: "reservation",
             title: `${row.guestName} · ${row.lodgingTitle}`,
             subtitle: `${row.checkIn} → ${row.checkOut}`,
-            href: "/admin/dashboard/residences",
+            href: `/admin/dashboard/reservations/${row._id}`,
             activity: "residences",
+          });
+        }
+      })(),
+    );
+  }
+
+  if (want("employee")) {
+    tasks.push(
+      (async () => {
+        const rows = await db
+          .collection("employees")
+          .find({
+            $or: [
+              { firstName: pattern },
+              { lastName: pattern },
+              { email: pattern },
+              { employeeNumber: pattern },
+              { jobTitle: pattern },
+            ],
+          })
+          .limit(10)
+          .toArray();
+        for (const row of rows) {
+          hits.push({
+            id: String(row._id),
+            type: "employee",
+            title: `${row.firstName} ${row.lastName}`,
+            subtitle: `${row.employeeNumber} · ${row.jobTitle}`,
+            href: `/admin/dashboard/rh/${row._id}`,
           });
         }
       })(),
@@ -315,6 +346,8 @@ export function searchTypeLabel(type: string) {
       return "Paiement";
     case "blog":
       return "Blog";
+    case "employee":
+      return "Employé";
     default:
       return type;
   }

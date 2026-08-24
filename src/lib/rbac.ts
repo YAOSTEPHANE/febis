@@ -1,69 +1,17 @@
+import "server-only";
 import bcrypt from "bcryptjs";
 import { ObjectId, type Db } from "mongodb";
 import { getDb } from "@/lib/mongodb";
 import type { Role, UserDoc } from "@/lib/types";
 import { ROLES } from "@/lib/types";
 import { roleLabel, type SessionPayload } from "@/lib/auth";
+import {
+  permissionsFor,
+  type Permission,
+} from "@/lib/rbac-shared";
 
-export type Permission =
-  | "dashboard"
-  | "vitrine"
-  | "crm"
-  | "finance"
-  | "facturation"
-  | "paiements"
-  | "operations"
-  | "users"
-  | "notifications"
-  | "backup"
-  | "search";
-
-const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
-  admin: [
-    "dashboard",
-    "vitrine",
-    "crm",
-    "finance",
-    "facturation",
-    "paiements",
-    "operations",
-    "users",
-    "notifications",
-    "backup",
-    "search",
-  ],
-  direction: [
-    "dashboard",
-    "crm",
-    "finance",
-    "facturation",
-    "paiements",
-    "operations",
-    "notifications",
-    "search",
-    "backup",
-  ],
-  compta: [
-    "dashboard",
-    "crm",
-    "finance",
-    "facturation",
-    "paiements",
-    "notifications",
-    "search",
-  ],
-  operationnels: [
-    "dashboard",
-    "operations",
-    "crm",
-    "notifications",
-    "search",
-  ],
-};
-
-export function permissionsFor(role: Role): Permission[] {
-  return ROLE_PERMISSIONS[role] ?? [];
-}
+export type { Permission } from "@/lib/rbac-shared";
+export { permissionsFor } from "@/lib/rbac-shared";
 
 export function can(session: SessionPayload | null, permission: Permission) {
   if (!session) return false;

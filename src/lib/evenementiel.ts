@@ -10,74 +10,29 @@ import {
   EQUIPMENT_STATUSES,
   QUOTE_STATUSES,
 } from "@/lib/types";
-import { formatXof } from "@/lib/residences";
+import { formatXof } from "@/lib/evenementiel-shared";
+import {
+  equipmentCategoryLabel,
+  equipmentStatusLabel,
+  isEquipmentCategory,
+  isEquipmentStatus,
+  isQuoteStatus,
+  quoteStatusLabel,
+  type SerializedEquipment,
+} from "@/lib/evenementiel-shared";
 
-export { formatXof };
-
-export function equipmentStatusLabel(status: EquipmentStatus): string {
-  switch (status) {
-    case "disponible":
-      return "Disponible";
-    case "loue":
-      return "En location";
-    case "maintenance":
-      return "Maintenance";
-    default: {
-      const _exhaustive: never = status;
-      return _exhaustive;
-    }
-  }
-}
-
-export function equipmentCategoryLabel(category: EquipmentCategory): string {
-  switch (category) {
-    case "mobilier":
-      return "Mobilier";
-    case "sonorisation":
-      return "Sonorisation";
-    case "eclairage":
-      return "Éclairage";
-    case "decoration":
-      return "Décoration";
-    case "vaisselle":
-      return "Vaisselle";
-    default: {
-      const _exhaustive: never = category;
-      return _exhaustive;
-    }
-  }
-}
-
-export function quoteStatusLabel(status: QuoteStatus): string {
-  switch (status) {
-    case "brouillon":
-      return "Brouillon";
-    case "envoye":
-      return "Envoyé";
-    case "accepte":
-      return "Accepté";
-    case "refuse":
-      return "Refusé";
-    default: {
-      const _exhaustive: never = status;
-      return _exhaustive;
-    }
-  }
-}
-
-export function isEquipmentCategory(
-  value: string,
-): value is EquipmentCategory {
-  return (EQUIPMENT_CATEGORIES as readonly string[]).includes(value);
-}
-
-export function isEquipmentStatus(value: string): value is EquipmentStatus {
-  return (EQUIPMENT_STATUSES as readonly string[]).includes(value);
-}
-
-export function isQuoteStatus(value: string): value is QuoteStatus {
-  return (QUOTE_STATUSES as readonly string[]).includes(value);
-}
+export {
+  formatXof,
+  equipmentCategoryLabel,
+  equipmentStatusLabel,
+  isEquipmentCategory,
+  isEquipmentStatus,
+  isQuoteStatus,
+  quoteStatusLabel,
+  EQUIPMENT_CATEGORIES,
+  EQUIPMENT_STATUSES,
+  QUOTE_STATUSES,
+};
 
 export function daysBetween(start: string, end: string): number {
   const a = new Date(`${start}T12:00:00`).getTime();
@@ -86,10 +41,10 @@ export function daysBetween(start: string, end: string): number {
 }
 
 export function serializeEquipment(
-  doc: EquipmentDoc & { _id?: { toString(): string } },
-) {
+  doc: Omit<EquipmentDoc, "_id"> & { _id?: string | { toString(): string } },
+): SerializedEquipment {
   return {
-    id: doc._id?.toString?.() ?? "",
+    id: typeof doc._id === "string" ? doc._id : (doc._id?.toString?.() ?? ""),
     name: doc.name,
     slug: doc.slug,
     category: doc.category,
@@ -97,15 +52,27 @@ export function serializeEquipment(
     photo: doc.photo,
     pricePerDay: doc.pricePerDay,
     depositAmount: doc.depositAmount,
-    currency: doc.currency,
+    currency: "XOF",
     quantityTotal: doc.quantityTotal,
     quantityAvailable: doc.quantityAvailable,
     status: doc.status,
     penaltyPerDamage: doc.penaltyPerDamage,
+    createdAt:
+      doc.createdAt instanceof Date
+        ? doc.createdAt.toISOString()
+        : doc.createdAt
+          ? new Date(doc.createdAt).toISOString()
+          : null,
+    updatedAt:
+      doc.updatedAt instanceof Date
+        ? doc.updatedAt.toISOString()
+        : doc.updatedAt
+          ? new Date(doc.updatedAt).toISOString()
+          : null,
   };
 }
 
-export type PublicEquipment = ReturnType<typeof serializeEquipment>;
+export type PublicEquipment = SerializedEquipment;
 
 export function buildQuoteLine(input: {
   equipment: PublicEquipment;
@@ -144,6 +111,8 @@ export const FALLBACK_EQUIPMENT: PublicEquipment[] = [
     quantityAvailable: 168,
     status: "disponible",
     penaltyPerDamage: 12000,
+    createdAt: null,
+    updatedAt: null,
   },
   {
     id: "eq-2",
@@ -159,6 +128,8 @@ export const FALLBACK_EQUIPMENT: PublicEquipment[] = [
     quantityAvailable: 5,
     status: "disponible",
     penaltyPerDamage: 80000,
+    createdAt: null,
+    updatedAt: null,
   },
   {
     id: "eq-3",
@@ -174,6 +145,8 @@ export const FALLBACK_EQUIPMENT: PublicEquipment[] = [
     quantityAvailable: 0,
     status: "loue",
     penaltyPerDamage: 35000,
+    createdAt: null,
+    updatedAt: null,
   },
   {
     id: "eq-4",
@@ -189,6 +162,8 @@ export const FALLBACK_EQUIPMENT: PublicEquipment[] = [
     quantityAvailable: 2,
     status: "disponible",
     penaltyPerDamage: 90000,
+    createdAt: null,
+    updatedAt: null,
   },
   {
     id: "eq-5",
@@ -204,6 +179,8 @@ export const FALLBACK_EQUIPMENT: PublicEquipment[] = [
     quantityAvailable: 9,
     status: "disponible",
     penaltyPerDamage: 25000,
+    createdAt: null,
+    updatedAt: null,
   },
   {
     id: "eq-6",
@@ -219,6 +196,8 @@ export const FALLBACK_EQUIPMENT: PublicEquipment[] = [
     quantityAvailable: 1,
     status: "maintenance",
     penaltyPerDamage: 200000,
+    createdAt: null,
+    updatedAt: null,
   },
 ];
 
@@ -244,3 +223,5 @@ export const EVENT_PROCESS = [
     text: "Enregistrement des dégâts et application des pénalités associées.",
   },
 ] as const;
+
+export type { EquipmentCategory, EquipmentStatus, QuoteStatus };

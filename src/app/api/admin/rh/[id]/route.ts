@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
+import { can } from "@/lib/rbac";
 import {
   addHrDocument,
   createContract,
   createLeave,
+  deleteHrDocument,
   getEmployeeDetail,
   recordAttendance,
+  updateContractStatus,
   updateEmployee,
   updateLeaveStatus,
   ATTENDANCE_STATUSES,
+  CONTRACT_STATUSES,
   CONTRACT_TYPES,
   HR_DOC_CATEGORIES,
   LEAVE_STATUSES,
@@ -18,6 +22,7 @@ import {
 } from "@/lib/rh";
 import type {
   AttendanceStatus,
+  ContractStatus,
   ContractType,
   EmployeeDepartment,
   EmployeeStatus,
@@ -30,8 +35,8 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_request: NextRequest, { params }: Params) {
   const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+  if (!session || !can(session, "operations")) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
 
   const { id } = await params;
@@ -44,8 +49,8 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+  if (!session || !can(session, "operations")) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
 
   const { id } = await params;
@@ -113,6 +118,18 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       }
     }
 
+    if (action === "contract_status") {
+      const contractId = String(body.contractId ?? "");
+      const status = body.status as ContractStatus;
+      if (!CONTRACT_STATUSES.includes(status)) {
+        return NextResponse.json({ error: "Statut contrat invalide" }, { status: 400 });
+      }
+      const contract = await updateContractStatus(contractId, status);
+      if (!contract) {
+        return NextResponse.json({ error: "Contrat introuvable" }, { status: 404 });
+      }
+    }
+
     if (action === "attendance") {
       const status = body.status as AttendanceStatus;
       if (!ATTENDANCE_STATUSES.includes(status)) {
@@ -176,6 +193,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       });
       if (!document) {
         return NextResponse.json({ error: "Document non enregistré" }, { status: 400 });
+      }
+    }
+
+    if (action === "document_delete") {
+      const documentId = String(body.documentId ?? "");
+      const ok = await deleteHrDocument(documentId);
+      if (!ok) {
+        return NextResponse.json({ error: "Document introuvable" }, { status: 404 });
       }
     }
   } catch (error) {

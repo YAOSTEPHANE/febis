@@ -145,7 +145,9 @@ export function buildCalendarDays(options: {
   return days;
 }
 
-export function serializeLodging(doc: LodgingDoc & { _id?: { toString(): string } }) {
+export function serializeLodging(
+  doc: Omit<LodgingDoc, "_id"> & { _id?: string | { toString(): string } },
+) {
   return {
     id: doc._id?.toString?.() ?? "",
     title: doc.title,

@@ -249,7 +249,14 @@ export type BillingDocumentDoc = {
   currency: "XOF";
   notes?: string;
   validUntil?: string;
-  sourceType?: "reservation" | "event_quote" | "shop_order" | "invoice" | "manual" | "report";
+  sourceType?:
+    | "reservation"
+    | "event_quote"
+    | "shop_order"
+    | "invoice"
+    | "btp"
+    | "manual"
+    | "report";
   sourceId?: string;
   meta?: Record<string, string | number | boolean>;
   createdAt: Date;
@@ -310,6 +317,7 @@ export type ReservationDoc = {
   message?: string;
   paymentChannel?: PaymentChannel | null;
   inventoryNotes?: string;
+  cancelled?: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -622,4 +630,42 @@ export type HrDocumentDoc = {
   notes?: string;
   uploadedAt: Date;
   createdAt: Date;
+};
+
+/* ——— Module BTP (CDC §4.3) ——— */
+
+export const BTP_STEPS = [
+  "prospect",
+  "devis",
+  "contrat",
+  "chantier",
+  "avancement",
+  "livraison",
+] as const;
+export type BtpStep = (typeof BTP_STEPS)[number];
+
+export type BtpProjectDoc = {
+  _id?: string;
+  reference: string;
+  title: string;
+  clientName: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  clientCompany?: string;
+  location: string;
+  description?: string;
+  step: BtpStep;
+  quoteAmount: number;
+  contractAmount?: number;
+  progressPercent: number;
+  currency: "XOF";
+  startDate?: string;
+  expectedEndDate?: string;
+  deliveredAt?: string | null;
+  notes?: string;
+  cancelled?: boolean;
+  crmClientId?: string;
+  crmProjectId?: string;
+  createdAt: Date;
+  updatedAt: Date;
 };

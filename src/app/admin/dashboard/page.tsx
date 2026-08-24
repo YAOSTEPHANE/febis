@@ -1,59 +1,155 @@
 import { getDb } from "@/lib/mongodb";
 import { requireAdminSession } from "@/lib/admin-auth";
+import { permissionsFor } from "@/lib/rbac-shared";
+import { getDirectionMetrics } from "@/lib/direction-metrics";
+import { getRhOverview } from "@/lib/rh";
+import { formatXof } from "@/lib/crm-shared";
+import { getDashboardChartData } from "@/lib/dashboard-charts";
+import type { DashboardChartData } from "@/lib/dashboard-charts-shared";
 import {
-  AdminModulesGrid,
-  AdminStatsGrid,
-  DashboardCommandHero,
-  DashboardInboxPreview,
-  DashboardQuickActions,
-  SeedHomepageButton,
+  AdminDashboardShell,
   type DashboardContact,
-  type DashboardStat,
+  type DashboardDomainStat,
+  type DashboardPilotKpi,
 } from "@/components/admin/AdminDashboardClient";
 
 export default async function AdminDashboardPage() {
   const session = await requireAdminSession();
+  const permissions = permissionsFor(session.role);
 
+  let dbOk = true;
   let contactsCount = 0;
   let lodgingsCount = 0;
   let equipmentCount = 0;
+  let productsCount = 0;
+  let reservationsCount = 0;
+  let clientsCount = 0;
+  let employeesCount = 0;
   let blogCount = 0;
-  let testimonialsCount = 0;
-  let travauxCount = 0;
-  let dbOk = true;
   let recentContacts: DashboardContact[] = [];
+
+  let pilot: DashboardPilotKpi[] = [
+    {
+      label: "Chiffre d’affaires",
+      value: formatXof(0),
+      hint: "Factures payées + encaissements",
+      href: "/admin/dashboard/direction",
+    },
+    {
+      label: "Occupation",
+      value: "0 %",
+      hint: "Résidences",
+      href: "/admin/dashboard/residences",
+    },
+    {
+      label: "Stock dispo",
+      value: "100 %",
+      hint: "Événementiel & boutique",
+      href: "/admin/dashboard/evenementiel",
+    },
+    {
+      label: "Projets ouverts",
+      value: "0",
+      hint: "CRM + BTP",
+      href: "/admin/dashboard/btp",
+    },
+  ];
+
+  let unpaidCount = 0;
+  let unpaidLabel = formatXof(0);
+  let leavesPending = 0;
+  let lowStockCount = 0;
+  let generatedAt = new Date().toISOString();
+  let charts: DashboardChartData = {
+    caByActivity: [],
+    revenueVsExpenses: [],
+    paymentsByChannel: [],
+    monthlyTrend: [],
+    gauges: { occupancy: 0, stock: 100 },
+  };
 
   try {
     const db = await getDb();
-    const [
-      contacts,
-      lodgings,
-      equipment,
-      blog,
-      testimonials,
-      travaux,
-      latestContacts,
-    ] = await Promise.all([
-      db.collection("contacts").countDocuments(),
-      db.collection("lodgings").countDocuments(),
-      db.collection("equipment").countDocuments(),
-      db.collection("blogPosts").countDocuments(),
-      db.collection("testimonials").countDocuments(),
-      db.collection("travaux").countDocuments(),
+    const [metrics, rh, counts, latestContacts, chartData] = await Promise.all([
+      getDirectionMetrics(),
+      getRhOverview(),
+      Promise.all([
+        db.collection("contacts").countDocuments(),
+        db.collection("lodgings").countDocuments(),
+        db.collection("equipment").countDocuments(),
+        db.collection("products").countDocuments(),
+        db
+          .collection("reservations")
+          .countDocuments({ cancelled: { $ne: true } }),
+        db.collection("clients").countDocuments(),
+        db.collection("employees").countDocuments(),
+        db.collection("blogPosts").countDocuments(),
+      ]),
       db
         .collection("contacts")
         .find({})
         .sort({ createdAt: -1 })
         .limit(5)
         .toArray(),
+      getDashboardChartData(),
     ]);
+
+    const [
+      contacts,
+      lodgings,
+      equipment,
+      products,
+      reservations,
+      clients,
+      employees,
+      blog,
+    ] = counts;
 
     contactsCount = contacts;
     lodgingsCount = lodgings;
     equipmentCount = equipment;
+    productsCount = products;
+    reservationsCount = reservations;
+    clientsCount = clients;
+    employeesCount = employees;
     blogCount = blog;
-    testimonialsCount = testimonials;
-    travauxCount = travaux;
+
+    pilot = [
+      {
+        label: "Chiffre d’affaires",
+        value: metrics.caLabel,
+        hint: "Factures payées + encaissements",
+        href: "/admin/dashboard/direction",
+      },
+      {
+        label: "Occupation",
+        value: metrics.occupancyLabel,
+        hint: `${metrics.activeReservations} séjour(s) en cours`,
+        href: "/admin/dashboard/residences",
+      },
+      {
+        label: "Stock dispo",
+        value: metrics.stockLabel,
+        hint:
+          metrics.lowStockCount > 0
+            ? `${metrics.lowStockCount} alerte(s)`
+            : "Niveaux OK",
+        href: "/admin/dashboard/evenementiel",
+      },
+      {
+        label: "Projets ouverts",
+        value: String(metrics.projectsOpen),
+        hint: `${metrics.btpOpen} chantier(s) BTP`,
+        href: "/admin/dashboard/btp",
+      },
+    ];
+
+    unpaidCount = metrics.unpaidCount;
+    unpaidLabel = formatXof(metrics.unpaid);
+    leavesPending = rh.leavesPending;
+    lowStockCount = metrics.lowStockCount;
+    generatedAt = metrics.generatedAt;
+    charts = chartData;
 
     recentContacts = latestContacts.map((doc) => ({
       id: String(doc._id),
@@ -68,122 +164,83 @@ export default async function AdminDashboardPage() {
     dbOk = false;
   }
 
-  const stats: DashboardStat[] = [
-    {
-      label: "Contacts",
-      value: contactsCount,
-      href: "/admin/dashboard/contacts",
-      hint: "Messages reçus depuis la vitrine",
-      group: "inbox",
-      mark: "CO",
-    },
+  const activityStats: DashboardDomainStat[] = [
     {
       label: "Logements",
       value: lodgingsCount,
       href: "/admin/dashboard/residences",
-      hint: "Résidences en catalogue",
-      group: "activites",
+      hint: "Catalogue résidences",
       mark: "RÉ",
+    },
+    {
+      label: "Réservations",
+      value: reservationsCount,
+      href: "/admin/dashboard/reservations",
+      hint: "Demandes & séjours",
+      mark: "RV",
     },
     {
       label: "Matériel event",
       value: equipmentCount,
       href: "/admin/dashboard/evenementiel",
-      hint: "Articles événementiels",
-      group: "activites",
+      hint: "Parc événementiel",
       mark: "ÉV",
+    },
+    {
+      label: "Produits boutique",
+      value: productsCount,
+      href: "/admin/dashboard/boutique",
+      hint: "Catalogue & stock",
+      mark: "BQ",
+    },
+  ];
+
+  const transverseStats: DashboardDomainStat[] = [
+    {
+      label: "Clients CRM",
+      value: clientsCount,
+      href: "/admin/dashboard/crm",
+      hint: "Base unique partagée",
+      mark: "CRM",
+    },
+    {
+      label: "Employés RH",
+      value: employeesCount,
+      href: "/admin/dashboard/rh",
+      hint: "Dossiers numériques",
+      mark: "RH",
     },
     {
       label: "Articles blog",
       value: blogCount,
       href: "/admin/dashboard/blog",
-      hint: "Contenus éditoriaux",
-      group: "vitrine",
+      hint: "Aussi dans Contenu",
       mark: "BL",
     },
     {
-      label: "Témoignages",
-      value: testimonialsCount,
-      href: "/admin/dashboard/temoignages",
-      hint: "Avis clients publiables",
-      group: "vitrine",
-      mark: "TÉ",
-    },
-    {
-      label: "Travaux",
-      value: travauxCount,
-      href: "/admin/dashboard/travaux",
-      hint: "Réalisations BTP & events",
-      group: "activites",
-      mark: "TR",
+      label: "Messages",
+      value: contactsCount,
+      href: "/admin/dashboard/contacts",
+      hint: "Inbox vitrine",
+      mark: "CO",
     },
   ];
 
-  const totalSignals =
-    contactsCount +
-    lodgingsCount +
-    equipmentCount +
-    blogCount +
-    testimonialsCount +
-    travauxCount;
-
   return (
-    <>
-      <DashboardCommandHero
-        operatorName={session.name}
-        dbOk={dbOk}
-        totalSignals={totalSignals}
-      />
-
-      {!dbOk && (
-        <div className="mb-6 rounded-xl border border-amber-500/25 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
-          MongoDB indisponible — les compteurs affichent 0. Vérifiez{" "}
-          <code className="rounded bg-white/80 px-1">MONGODB_URI</code>.
-        </div>
-      )}
-
-      <section className="mb-9">
-        <div className="mb-3 flex items-end justify-between gap-3">
-          <div>
-            <h2 className="font-display text-xl font-bold text-febis-ink">
-              Indicateurs clés
-            </h2>
-            <p className="text-sm text-febis-ink/45">
-              Vue temps réel des modules opérationnels
-            </p>
-          </div>
-        </div>
-        <AdminStatsGrid stats={stats} />
-      </section>
-
-      <section className="mb-9">
-        <div className="mb-3">
-          <h2 className="font-display text-xl font-bold text-febis-ink">
-            Actions rapides
-          </h2>
-          <p className="text-sm text-febis-ink/45">
-            Accès direct aux tâches les plus fréquentes
-          </p>
-        </div>
-        <DashboardQuickActions />
-      </section>
-
-      <section className="mb-10 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-        <DashboardInboxPreview contacts={recentContacts} />
-        <SeedHomepageButton />
-      </section>
-
-      <section>
-        <div className="mb-4">
-          <h2 className="font-display text-xl font-bold text-febis-ink">
-            Modules
-          </h2>
-          <p className="mt-1 text-sm text-febis-ink/50">
-            Édition vitrine, catalogues et demandes — organisés par domaine.
-          </p>
-        </div>
-        <AdminModulesGrid />
-      </section>
-    </>
+    <AdminDashboardShell
+      dbOk={dbOk}
+      generatedAt={generatedAt}
+      pilot={pilot}
+      activityStats={activityStats}
+      transverseStats={transverseStats}
+      contacts={recentContacts}
+      unpaidCount={unpaidCount}
+      unpaidLabel={unpaidLabel}
+      leavesPending={leavesPending}
+      lowStockCount={lowStockCount}
+      contactsCount={contactsCount}
+      permissions={permissions}
+      charts={charts}
+    />
   );
 }

@@ -1,13 +1,15 @@
+import "server-only";
 import type { Db } from "mongodb";
 import { getDb } from "@/lib/mongodb";
 import { formatXof } from "@/lib/crm-shared";
 import type {
-  ExpenseDoc,
   InvoiceDoc,
   LodgingDoc,
   EquipmentDoc,
   ProjectDoc,
   PaymentDoc,
+  ProductDoc,
+  ReservationDoc,
 } from "@/lib/types";
 import { ACTIVITIES } from "@/lib/types";
 
@@ -33,6 +35,8 @@ export type DirectionMetrics = {
   projectsLabel: string;
   unpaid: number;
   unpaidCount: number;
+  activeReservations: number;
+  btpOpen: number;
   caByActivity: Array<{ activity: string; label: string; amount: number }>;
   generatedAt: string;
 };
@@ -58,6 +62,8 @@ export async function getDirectionMetrics(): Promise<DirectionMetrics> {
     projectsLabel: "0 projet",
     unpaid: 0,
     unpaidCount: 0,
+    activeReservations: 0,
+    btpOpen: 0,
     caByActivity: ACTIVITIES.map((a) => ({
       activity: a,
       label: ACTIVITY_LABELS[a] ?? a,
@@ -69,25 +75,50 @@ export async function getDirectionMetrics(): Promise<DirectionMetrics> {
   const db = await tryDb();
   if (!db) return empty;
 
-  const [invoices, payments, lodgings, equipment, projects, expenses] =
-    await Promise.all([
-      db.collection<InvoiceDoc>("invoices").find({}).limit(3000).toArray(),
-      db
-        .collection<PaymentDoc>("payments")
-        .find({ status: "confirme", direction: "entrant" })
-        .limit(3000)
-        .toArray(),
-      db.collection<LodgingDoc>("lodgings").find({}).limit(500).toArray(),
-      db.collection<EquipmentDoc>("equipment").find({}).limit(500).toArray(),
-      db
-        .collection<ProjectDoc>("projects")
-        .find({ status: { $in: ["ouvert", "en_cours"] } })
-        .limit(500)
-        .toArray(),
-      db.collection<ExpenseDoc>("expenses").find({}).limit(1).toArray(),
-    ]);
+  const today = new Date().toISOString().slice(0, 10);
 
-  void expenses;
+  const [
+    invoices,
+    payments,
+    lodgings,
+    equipment,
+    products,
+    projects,
+    btpProjects,
+    reservations,
+  ] = await Promise.all([
+    db.collection<InvoiceDoc>("invoices").find({}).limit(3000).toArray(),
+    db
+      .collection<PaymentDoc>("payments")
+      .find({ status: "confirme", direction: "entrant" })
+      .limit(3000)
+      .toArray(),
+    db.collection<LodgingDoc>("lodgings").find({}).limit(500).toArray(),
+    db.collection<EquipmentDoc>("equipment").find({}).limit(500).toArray(),
+    db.collection<ProductDoc>("products").find({}).limit(500).toArray(),
+    db
+      .collection<ProjectDoc>("projects")
+      .find({ status: { $in: ["ouvert", "en_cours"] } })
+      .limit(500)
+      .toArray(),
+    db
+      .collection("btpProjects")
+      .find({
+        cancelled: { $ne: true },
+        step: { $nin: ["livre", "annule"] },
+      })
+      .limit(500)
+      .toArray(),
+    db
+      .collection<ReservationDoc>("reservations")
+      .find({
+        cancelled: { $ne: true },
+        checkIn: { $lte: today },
+        checkOut: { $gt: today },
+      })
+      .limit(500)
+      .toArray(),
+  ]);
 
   const caByActivityMap = Object.fromEntries(
     ACTIVITIES.map((a) => [a, 0]),
@@ -104,7 +135,6 @@ export async function getDirectionMetrics(): Promise<DirectionMetrics> {
     }
   }
 
-  // Complète avec paiements confirmés non déjà comptés via factures payées
   for (const pay of payments) {
     if (!pay.invoiceId) {
       ca += pay.amount;
@@ -124,15 +154,25 @@ export async function getDirectionMetrics(): Promise<DirectionMetrics> {
     }
   }
 
+  const occupiedSlugs = new Set(
+    reservations.map((r) => r.lodgingSlug).filter(Boolean),
+  );
   const totalLodgings = lodgings.length || 1;
-  const occupied = lodgings.filter(
-    (l) => l.status === "reserve" || l.status === "maintenance",
+  const occupiedByStatus = lodgings.filter(
+    (l) =>
+      l.status === "reserve" ||
+      l.status === "maintenance" ||
+      occupiedSlugs.has(l.slug),
   ).length;
-  const occupancyRate = Math.round((occupied / totalLodgings) * 100);
+  const occupancyRate = Math.min(
+    100,
+    Math.round((occupiedByStatus / totalLodgings) * 100),
+  );
 
   let stockTotal = 0;
   let stockAvailable = 0;
   let lowStockCount = 0;
+
   for (const item of equipment) {
     stockTotal += item.quantityTotal;
     stockAvailable += item.quantityAvailable;
@@ -143,12 +183,21 @@ export async function getDirectionMetrics(): Promise<DirectionMetrics> {
       lowStockCount += 1;
     }
   }
-  const stockRate =
-    stockTotal > 0
-      ? Math.round((stockAvailable / stockTotal) * 100)
-      : 100;
 
-  const projectsOpen = projects.length;
+  for (const product of products) {
+    const variants = product.variants ?? [];
+    const stock = variants.reduce((sum, v) => sum + Number(v.stock ?? 0), 0);
+    const capacity = Math.max(stock, variants.length || 1);
+    stockTotal += capacity;
+    stockAvailable += stock;
+    if (stock <= 2) lowStockCount += 1;
+  }
+
+  const stockRate =
+    stockTotal > 0 ? Math.round((stockAvailable / stockTotal) * 100) : 100;
+
+  const btpOpen = btpProjects.length;
+  const projectsOpen = projects.length + btpOpen;
 
   return {
     ca,
@@ -162,6 +211,8 @@ export async function getDirectionMetrics(): Promise<DirectionMetrics> {
     projectsLabel: `${projectsOpen} projet${projectsOpen > 1 ? "s" : ""}`,
     unpaid,
     unpaidCount,
+    activeReservations: reservations.length,
+    btpOpen,
     caByActivity: ACTIVITIES.map((a) => ({
       activity: a,
       label: ACTIVITY_LABELS[a] ?? a,

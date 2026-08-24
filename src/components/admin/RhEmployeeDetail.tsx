@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { AdminPageHeader, AdminSaveButton } from "@/components/admin/AdminForms";
 import {
   attendanceStatusLabel,
+  contractStatusLabel,
   contractTypeLabel,
   departmentLabel,
   employeeStatusLabel,
@@ -362,16 +363,47 @@ export function RhEmployeeDetail() {
               ) : (
                 contracts.map((c) => (
                   <li key={c.id} className="rounded-xl border border-febis-ink/6 bg-white/70 px-3.5 py-3">
-                    <p className="text-sm font-bold text-febis-ink">{c.title}</p>
-                    <p className="text-xs text-febis-ink/50">
-                      {contractTypeLabel(c.type)} · {c.status} · {c.startDate}
-                      {c.endDate ? ` → ${c.endDate}` : ""}
-                    </p>
-                    {c.salaryGross != null && (
-                      <p className="mt-1 text-sm font-semibold text-febis-red">
-                        {c.salaryGross.toLocaleString("fr-FR")} XOF
-                      </p>
-                    )}
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-bold text-febis-ink">{c.title}</p>
+                        <p className="text-xs text-febis-ink/50">
+                          {contractTypeLabel(c.type)} · {contractStatusLabel(c.status)} ·{" "}
+                          {c.startDate}
+                          {c.endDate ? ` → ${c.endDate}` : ""}
+                        </p>
+                        {c.salaryGross != null && (
+                          <p className="mt-1 text-sm font-semibold text-febis-red">
+                            {c.salaryGross.toLocaleString("fr-FR")} XOF
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(
+                          [
+                            ["actif", "Activer"],
+                            ["expire", "Expirer"],
+                            ["resilie", "Résilier"],
+                          ] as const
+                        )
+                          .filter(([st]) => st !== c.status)
+                          .map(([st, label]) => (
+                            <button
+                              key={st}
+                              type="button"
+                              className="rounded-lg border border-febis-ink/12 px-2 py-1 text-[10px] font-bold uppercase tracking-wide"
+                              onClick={() =>
+                                void patch({
+                                  action: "contract_status",
+                                  contractId: c.id,
+                                  status: st,
+                                })
+                              }
+                            >
+                              {label}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
                   </li>
                 ))
               )}
@@ -518,18 +550,34 @@ export function RhEmployeeDetail() {
               ) : (
                 documents.map((d) => (
                   <li key={d.id} className="rounded-xl bg-febis-smoke/70 px-3.5 py-3">
-                    <p className="text-sm font-bold text-febis-ink">{d.title}</p>
-                    <p className="text-xs text-febis-ink/50">
-                      {hrDocCategoryLabel(d.category)} · {d.fileName}
-                    </p>
-                    <a
-                      href={d.fileUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-1 inline-block text-sm font-semibold text-febis-red hover:underline"
-                    >
-                      Ouvrir →
-                    </a>
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-bold text-febis-ink">{d.title}</p>
+                        <p className="text-xs text-febis-ink/50">
+                          {hrDocCategoryLabel(d.category)} · {d.fileName}
+                        </p>
+                        <a
+                          href={d.fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-1 inline-block text-sm font-semibold text-febis-red hover:underline"
+                        >
+                          Ouvrir →
+                        </a>
+                      </div>
+                      <button
+                        type="button"
+                        className="text-xs font-bold text-febis-ink/45 hover:text-febis-red"
+                        onClick={() =>
+                          void patch({
+                            action: "document_delete",
+                            documentId: d.id,
+                          })
+                        }
+                      >
+                        Supprimer
+                      </button>
+                    </div>
                   </li>
                 ))
               )}

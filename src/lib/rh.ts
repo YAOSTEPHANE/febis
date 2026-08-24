@@ -22,6 +22,7 @@ import type {
   SerializedEmployee,
   SerializedHrDocument,
   SerializedLeave,
+  RhOverview,
 } from "@/lib/rh-shared";
 import {
   ATTENDANCE_STATUSES,
@@ -34,13 +35,6 @@ import {
   LEAVE_TYPES,
 } from "@/lib/rh-shared";
 
-export type {
-  SerializedAttendance,
-  SerializedContract,
-  SerializedEmployee,
-  SerializedHrDocument,
-  SerializedLeave,
-} from "@/lib/rh-shared";
 export {
   ATTENDANCE_STATUSES,
   CONTRACT_STATUSES,
@@ -51,6 +45,7 @@ export {
   LEAVE_STATUSES,
   LEAVE_TYPES,
   attendanceStatusLabel,
+  contractStatusLabel,
   contractTypeLabel,
   departmentLabel,
   employeeStatusLabel,
@@ -58,6 +53,16 @@ export {
   leaveStatusLabel,
   leaveTypeLabel,
 } from "@/lib/rh-shared";
+
+export type {
+  SerializedAttendance,
+  SerializedContract,
+  SerializedEmployee,
+  SerializedHrDocument,
+  SerializedLeave,
+  RhOverview,
+} from "@/lib/rh-shared";
+
 
 async function tryDb(): Promise<Db | null> {
   try {
@@ -570,4 +575,80 @@ export async function addHrDocument(input: {
     ...doc,
     _id: result.insertedId,
   } as HrDocumentDoc & { _id: ObjectId });
+}
+
+export async function updateContractStatus(
+  id: string,
+  status: ContractStatus,
+): Promise<SerializedContract | null> {
+  const db = await tryDb();
+  if (!db || !ObjectId.isValid(id)) return null;
+  if (!CONTRACT_STATUSES.includes(status)) return null;
+
+  await db.collection("employmentContracts").updateOne(
+    { _id: new ObjectId(id) },
+    { $set: { status, updatedAt: new Date() } },
+  );
+  const updated = await db
+    .collection("employmentContracts")
+    .findOne({ _id: new ObjectId(id) });
+  if (!updated?._id) return null;
+  return serializeContract(updated as EmploymentContractDoc & { _id: ObjectId });
+}
+
+export async function deleteHrDocument(id: string): Promise<boolean> {
+  const db = await tryDb();
+  if (!db || !ObjectId.isValid(id)) return false;
+  const result = await db
+    .collection("hrDocuments")
+    .deleteOne({ _id: new ObjectId(id) });
+  return result.deletedCount > 0;
+}
+
+export async function getRhOverview(): Promise<RhOverview> {
+  const empty: RhOverview = {
+    employeesTotal: 0,
+    employeesActive: 0,
+    leavesPending: 0,
+    attendanceToday: 0,
+    contractsExpiring: 0,
+    documentsTotal: 0,
+  };
+  const db = await tryDb();
+  if (!db) return empty;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const in60 = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+
+  const [
+    employeesTotal,
+    employeesActive,
+    leavesPending,
+    attendanceToday,
+    contractsExpiring,
+    documentsTotal,
+  ] = await Promise.all([
+    db.collection("employees").countDocuments(),
+    db.collection("employees").countDocuments({
+      status: { $in: ["actif", "essai"] },
+    }),
+    db.collection("leaves").countDocuments({ status: "demande" }),
+    db.collection("attendances").countDocuments({ date: today }),
+    db.collection("employmentContracts").countDocuments({
+      status: "actif",
+      endDate: { $gte: today, $lte: in60 },
+    }),
+    db.collection("hrDocuments").countDocuments(),
+  ]);
+
+  return {
+    employeesTotal,
+    employeesActive,
+    leavesPending,
+    attendanceToday,
+    contractsExpiring,
+    documentsTotal,
+  };
 }

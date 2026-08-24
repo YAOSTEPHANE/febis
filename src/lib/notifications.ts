@@ -1,16 +1,27 @@
+import "server-only";
 import { ObjectId, type Db } from "mongodb";
 import { getDb } from "@/lib/mongodb";
+import {
+  NOTIFICATION_CHANNELS,
+  NOTIFICATION_EVENTS,
+  notificationChannelLabel,
+  notificationEventLabel,
+  type NotificationChannel,
+  type NotificationEvent,
+  type SerializedNotification,
+} from "@/lib/direction-shared";
 
-export const NOTIFICATION_CHANNELS = ["email", "whatsapp", "sms"] as const;
-export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
-
-export const NOTIFICATION_EVENTS = [
-  "reservation",
-  "paiement",
-  "echeance",
-  "stock_faible",
-] as const;
-export type NotificationEvent = (typeof NOTIFICATION_EVENTS)[number];
+export {
+  NOTIFICATION_CHANNELS,
+  NOTIFICATION_EVENTS,
+  notificationChannelLabel,
+  notificationEventLabel,
+};
+export type {
+  NotificationChannel,
+  NotificationEvent,
+  SerializedNotification,
+} from "@/lib/direction-shared";
 
 export type NotificationDoc = {
   _id?: string;
@@ -24,18 +35,6 @@ export type NotificationDoc = {
   error?: string;
   createdAt: Date;
   sentAt?: Date;
-};
-
-export type SerializedNotification = {
-  id: string;
-  channel: NotificationChannel;
-  event: NotificationEvent;
-  to: string;
-  subject: string;
-  body: string;
-  status: string;
-  createdAt: string;
-  sentAt: string | null;
 };
 
 async function tryDb(): Promise<Db | null> {
@@ -58,34 +57,6 @@ function serialize(doc: NotificationDoc & { _id: ObjectId }): SerializedNotifica
     createdAt: new Date(doc.createdAt).toISOString(),
     sentAt: doc.sentAt ? new Date(doc.sentAt).toISOString() : null,
   };
-}
-
-export function notificationEventLabel(event: string) {
-  switch (event) {
-    case "reservation":
-      return "Réservation";
-    case "paiement":
-      return "Paiement";
-    case "echeance":
-      return "Échéance";
-    case "stock_faible":
-      return "Stock faible";
-    default:
-      return event;
-  }
-}
-
-export function notificationChannelLabel(channel: string) {
-  switch (channel) {
-    case "email":
-      return "Email";
-    case "whatsapp":
-      return "WhatsApp";
-    case "sms":
-      return "SMS";
-    default:
-      return channel;
-  }
 }
 
 export function getNotificationProviderStatus() {
@@ -251,35 +222,92 @@ export async function scanLowStockAndNotify(toEmail: string, toPhone?: string) {
   const db = await tryDb();
   if (!db) return [];
 
-  const equipment = await db
-    .collection<{
-      name: string;
-      quantityAvailable: number;
-      quantityTotal: number;
-    }>("equipment")
-    .find({})
-    .toArray();
+  const [equipment, products] = await Promise.all([
+    db
+      .collection<{
+        name: string;
+        quantityAvailable: number;
+        quantityTotal: number;
+      }>("equipment")
+      .find({})
+      .toArray(),
+    db
+      .collection<{
+        name: string;
+        variants?: Array<{ stock?: number }>;
+      }>("products")
+      .find({})
+      .toArray(),
+  ]);
 
-  const low = equipment.filter(
+  const lowEquip = equipment.filter(
     (e) =>
       e.quantityTotal > 0 && e.quantityAvailable / e.quantityTotal <= 0.2,
   );
+  const lowProducts = products
+    .map((p) => ({
+      name: p.name,
+      stock: (p.variants ?? []).reduce(
+        (sum, v) => sum + Number(v.stock ?? 0),
+        0,
+      ),
+    }))
+    .filter((p) => p.stock <= 2);
 
-  if (low.length === 0) return [];
+  if (lowEquip.length === 0 && lowProducts.length === 0) return [];
 
-  const body = low
-    .map(
-      (e) =>
-        `• ${e.name} : ${e.quantityAvailable}/${e.quantityTotal}`,
-    )
-    .join("\n");
+  const body = [
+    ...lowEquip.map(
+      (e) => `• [Évén.] ${e.name} : ${e.quantityAvailable}/${e.quantityTotal}`,
+    ),
+    ...lowProducts.map(
+      (p) => `• [Boutique] ${p.name} : stock ${p.stock}`,
+    ),
+  ].join("\n");
 
   return notifyAllChannels({
     event: "stock_faible",
     toEmail,
     toPhone,
-    subject: `FEBiS — ${low.length} stock(s) faible(s)`,
-    body: `Alertes stock événementiel :\n${body}`,
-    meta: { count: low.length },
+    subject: `FEBiS — ${lowEquip.length + lowProducts.length} stock(s) faible(s)`,
+    body: `Alertes stock :\n${body}`,
+    meta: {
+      count: lowEquip.length + lowProducts.length,
+    },
+  });
+}
+
+/** Factures émises depuis > 7 jours → échéances */
+export async function scanDueInvoicesAndNotify(
+  toEmail: string,
+  toPhone?: string,
+) {
+  const db = await tryDb();
+  if (!db) return [];
+
+  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const overdue = await db
+    .collection("invoices")
+    .find({ status: "emise", createdAt: { $lte: cutoff } })
+    .sort({ createdAt: 1 })
+    .limit(40)
+    .toArray();
+
+  if (overdue.length === 0) return [];
+
+  const body = overdue
+    .map((inv) => {
+      const amount = Number(inv.amount ?? 0);
+      return `• ${String(inv.number)} · ${String(inv.clientName)} · ${amount.toLocaleString("fr-FR")} XOF`;
+    })
+    .join("\n");
+
+  return notifyAllChannels({
+    event: "echeance",
+    toEmail,
+    toPhone,
+    subject: `FEBiS — ${overdue.length} échéance(s) / impayé(s)`,
+    body: `Factures émises non réglées (> 7 j) :\n${body}`,
+    meta: { count: overdue.length },
   });
 }

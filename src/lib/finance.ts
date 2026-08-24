@@ -1,6 +1,6 @@
+import "server-only";
 import { ObjectId, type Db } from "mongodb";
 import { getDb } from "@/lib/mongodb";
-import { activityLabel, formatXof } from "@/lib/crm-shared";
 import type {
   Activity,
   ExpenseCategory,
@@ -9,11 +9,35 @@ import type {
   PaymentChannel,
   PaymentDoc,
   PaymentDirection,
-  PaymentStatus,
 } from "@/lib/types";
 import { ACTIVITIES, PAYMENT_CHANNELS } from "@/lib/types";
+import {
+  activityLabel,
+  expenseCategoryLabel,
+  formatXof,
+  paymentChannelLabel,
+  type ActivityMoneyRow,
+  type ChannelMoneyRow,
+  type FinanceDashboard,
+  type SerializedExpense,
+  type SerializedPayment,
+  type SerializedUnpaid,
+} from "@/lib/finance-shared";
 
-export { activityLabel, formatXof };
+export {
+  activityLabel,
+  expenseCategoryLabel,
+  formatXof,
+  paymentChannelLabel,
+};
+export type {
+  ActivityMoneyRow,
+  ChannelMoneyRow,
+  FinanceDashboard,
+  SerializedExpense,
+  SerializedPayment,
+  SerializedUnpaid,
+} from "@/lib/finance-shared";
 
 async function tryDb(): Promise<Db | null> {
   try {
@@ -28,115 +52,6 @@ function toIso(value: Date | string | undefined | null) {
   const d = value instanceof Date ? value : new Date(value);
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
-
-export function paymentChannelLabel(channel: string) {
-  switch (channel) {
-    case "mobile_money":
-      return "Mobile Money";
-    case "virement":
-      return "Virement";
-    case "especes":
-      return "Espèces";
-    default:
-      return channel;
-  }
-}
-
-export function expenseCategoryLabel(category: string) {
-  switch (category) {
-    case "achats":
-      return "Achats";
-    case "salaires":
-      return "Salaires";
-    case "maintenance":
-      return "Maintenance";
-    case "logistique":
-      return "Logistique";
-    case "marketing":
-      return "Marketing";
-    case "loyers":
-      return "Loyers";
-    case "autres":
-      return "Autres";
-    default:
-      return category;
-  }
-}
-
-export type ActivityMoneyRow = {
-  activity: Activity;
-  label: string;
-  revenue: number;
-  expenses: number;
-  net: number;
-  unpaid: number;
-};
-
-export type ChannelMoneyRow = {
-  channel: PaymentChannel;
-  label: string;
-  inbound: number;
-  outbound: number;
-  count: number;
-};
-
-export type SerializedExpense = {
-  id: string;
-  activity: Activity;
-  category: ExpenseCategory;
-  title: string;
-  amount: number;
-  paymentChannel: string;
-  reference: string;
-  notes: string;
-  spentAt: string;
-  createdAt: string;
-};
-
-export type SerializedPayment = {
-  id: string;
-  activity: string;
-  channel: PaymentChannel;
-  direction: PaymentDirection;
-  amount: number;
-  status: PaymentStatus;
-  title: string;
-  reference: string;
-  clientName: string;
-  invoiceId: string;
-  invoiceNumber: string;
-  paidAt: string;
-  createdAt: string;
-};
-
-export type SerializedUnpaid = {
-  id: string;
-  number: string;
-  clientName: string;
-  activity: string;
-  title: string;
-  amount: number;
-  status: string;
-  createdAt: string;
-  ageDays: number;
-};
-
-export type FinanceDashboard = {
-  totals: {
-    revenue: number;
-    expenses: number;
-    net: number;
-    unpaid: number;
-    unpaidCount: number;
-    paymentsIn: number;
-    paymentsOut: number;
-  };
-  byActivity: ActivityMoneyRow[];
-  byChannel: ChannelMoneyRow[];
-  unpaid: SerializedUnpaid[];
-  recentPayments: SerializedPayment[];
-  recentExpenses: SerializedExpense[];
-};
 
 function emptyActivityRows(): ActivityMoneyRow[] {
   return ACTIVITIES.map((activity) => ({
@@ -341,18 +256,52 @@ export async function getFinanceDashboard(): Promise<FinanceDashboard> {
   };
 }
 
-export async function listExpenses(): Promise<SerializedExpense[]> {
+export async function listExpenses(filters?: {
+  activity?: string;
+}): Promise<SerializedExpense[]> {
   const db = await tryDb();
   if (!db) return [];
+  const query: Record<string, unknown> = {};
+  if (filters?.activity && filters.activity !== "all") {
+    query.activity = filters.activity;
+  }
   const rows = await db
     .collection<ExpenseDoc>("expenses")
-    .find({})
+    .find(query)
     .sort({ spentAt: -1 })
     .limit(200)
     .toArray();
   return rows
     .filter((row): row is ExpenseDoc & { _id: ObjectId } => Boolean(row._id))
     .map(serializeExpense);
+}
+
+export async function listPayments(filters?: {
+  channel?: string;
+  activity?: string;
+  direction?: string;
+}): Promise<SerializedPayment[]> {
+  const db = await tryDb();
+  if (!db) return [];
+  const query: Record<string, unknown> = {};
+  if (filters?.channel && filters.channel !== "all") {
+    query.channel = filters.channel;
+  }
+  if (filters?.activity && filters.activity !== "all") {
+    query.activity = filters.activity;
+  }
+  if (filters?.direction && filters.direction !== "all") {
+    query.direction = filters.direction;
+  }
+  const rows = await db
+    .collection<PaymentDoc>("payments")
+    .find(query)
+    .sort({ paidAt: -1 })
+    .limit(200)
+    .toArray();
+  return rows
+    .filter((row): row is PaymentDoc & { _id: ObjectId } => Boolean(row._id))
+    .map(serializePayment);
 }
 
 export async function createExpense(input: {
@@ -408,20 +357,6 @@ export async function createExpense(input: {
   return serializeExpense({ ...doc, _id: result.insertedId } as unknown as ExpenseDoc & { _id: ObjectId });
 }
 
-export async function listPayments(): Promise<SerializedPayment[]> {
-  const db = await tryDb();
-  if (!db) return [];
-  const rows = await db
-    .collection<PaymentDoc>("payments")
-    .find({})
-    .sort({ paidAt: -1 })
-    .limit(200)
-    .toArray();
-  return rows
-    .filter((row): row is PaymentDoc & { _id: ObjectId } => Boolean(row._id))
-    .map(serializePayment);
-}
-
 export async function recordPayment(input: {
   activity: Activity | "general";
   channel: PaymentChannel;
@@ -446,18 +381,19 @@ export async function recordPayment(input: {
   let amount = Math.max(0, Math.round(input.amount));
 
   if (input.invoiceId && ObjectId.isValid(input.invoiceId)) {
-    const invoice = await db.collection<InvoiceDoc>("invoices").findOne({
-      _id: new ObjectId(input.invoiceId) as unknown as string,
+    const invoice = await db.collection("invoices").findOne({
+      _id: new ObjectId(input.invoiceId),
     });
     if (invoice) {
-      invoiceNumber = invoice.number;
-      clientName = clientName || invoice.clientName;
-      clientId = clientId || invoice.clientId;
+      const inv = invoice as InvoiceDoc & { _id: ObjectId };
+      invoiceNumber = inv.number;
+      clientName = clientName || inv.clientName;
+      clientId = clientId || inv.clientId;
       activity =
-        invoice.activity === "general"
+        inv.activity === "general"
           ? "general"
-          : (invoice.activity as Activity);
-      if (!amount) amount = invoice.amount;
+          : (inv.activity as Activity);
+      if (!amount) amount = inv.amount;
 
       if (input.markInvoicePaid !== false) {
         await db.collection("invoices").updateOne(

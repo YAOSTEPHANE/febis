@@ -14,10 +14,21 @@ async function main() {
 
   await db.collection("users").createIndex({ email: 1 }, { unique: true });
   await db.collection("clients").createIndex({ email: 1 }, { unique: true, sparse: true });
+  await db.collection("clients").createIndex({ phone: 1 }, { sparse: true });
+  await db.collection("clients").createIndex({ lastInteractionAt: -1 });
+  await db.collection("clients").createIndex({ status: 1, lastInteractionAt: -1 });
+  await db.collection("clients").createIndex({ modules: 1 });
+  await db.collection("clients").createIndex({ tags: 1 });
+  await db.collection("projects").createIndex({ clientId: 1, updatedAt: -1 });
+  await db.collection("projects").createIndex({ sourceType: 1, sourceId: 1 });
+  await db.collection("invoices").createIndex({ clientId: 1, createdAt: -1 });
+  await db.collection("invoices").createIndex({ sourceType: 1, sourceId: 1 });
   await db.collection("lodgings").createIndex({ slug: 1 }, { unique: true });
   await db.collection("contacts").createIndex({ createdAt: -1 });
   await db.collection("reservations").createIndex({ lodgingSlug: 1, checkIn: 1 });
   await db.collection("reservations").createIndex({ createdAt: -1 });
+  await db.collection("reservations").createIndex({ step: 1, createdAt: -1 });
+  await db.collection("reservations").createIndex({ cancelled: 1 });
   await db.collection("employees").createIndex({ email: 1 }, { unique: true, sparse: true });
   await db.collection("employees").createIndex({ employeeNumber: 1 }, { unique: true });
   await db.collection("employmentContracts").createIndex({ employeeId: 1, startDate: -1 });
@@ -156,7 +167,13 @@ async function main() {
   }
 
   await db.collection("equipment").createIndex({ slug: 1 }, { unique: true });
+  await db.collection("equipment").createIndex({ category: 1, status: 1 });
   await db.collection("eventQuotes").createIndex({ createdAt: -1 });
+  await db.collection("eventQuotes").createIndex({ status: 1, createdAt: -1 });
+  await db.collection("eventQuotes").createIndex({ seedKey: 1 }, { unique: true, sparse: true });
+  await db.collection("equipmentMovements").createIndex({ createdAt: -1 });
+  await db.collection("equipmentMovements").createIndex({ equipmentSlug: 1, createdAt: -1 });
+  await db.collection("equipmentMovements").createIndex({ quoteId: 1 });
 
   const equipment = [
     {
@@ -256,11 +273,168 @@ async function main() {
     );
   }
 
+  const demoQuotes = [
+    {
+      seedKey: "demo-event-quote-1",
+      clientName: "Agence Céleste Events",
+      clientEmail: "booking@celeste-events.ci",
+      clientPhone: "+225 07 11 22 33 44",
+      eventDate: "2026-09-12",
+      returnDate: "2026-09-14",
+      message: "Mariage 150 personnes — Riviera.",
+      lines: [
+        {
+          equipmentSlug: "chaises-chiavari-or",
+          equipmentName: "Chaises Chiavari or",
+          quantity: 80,
+          days: 2,
+          unitPrice: 1500,
+          depositUnit: 5000,
+          lineTotal: 240000,
+          lineDeposit: 400000,
+        },
+        {
+          equipmentSlug: "sono-pack-1000w",
+          equipmentName: "Sono pack 1000W",
+          quantity: 2,
+          days: 2,
+          unitPrice: 45000,
+          depositUnit: 150000,
+          lineTotal: 180000,
+          lineDeposit: 300000,
+        },
+      ],
+      rentalTotal: 420000,
+      depositTotal: 700000,
+      currency: "XOF",
+      status: "envoye",
+    },
+    {
+      seedKey: "demo-event-quote-2",
+      clientName: "Fondation Horizon",
+      clientEmail: "logistique@horizon.ci",
+      clientPhone: "+225 05 55 66 77 88",
+      eventDate: "2026-08-20",
+      returnDate: "2026-08-21",
+      message: "Conférence Plateau.",
+      lines: [
+        {
+          equipmentSlug: "projecteurs-led-ambiance",
+          equipmentName: "Projecteurs LED ambiance",
+          quantity: 6,
+          days: 1,
+          unitPrice: 18000,
+          depositUnit: 40000,
+          lineTotal: 108000,
+          lineDeposit: 240000,
+        },
+      ],
+      rentalTotal: 108000,
+      depositTotal: 240000,
+      currency: "XOF",
+      status: "accepte",
+    },
+  ];
+
+  for (const quote of demoQuotes) {
+    const { seedKey, ...doc } = quote;
+    await db.collection("eventQuotes").updateOne(
+      { seedKey },
+      {
+        $set: { ...doc, seedKey, updatedAt: now },
+        $setOnInsert: { createdAt: now },
+      },
+      { upsert: true },
+    );
+  }
+
   await db.collection("products").createIndex({ slug: 1 }, { unique: true });
   await db.collection("products").createIndex({ category: 1 });
   await db.collection("shopOrders").createIndex({ createdAt: -1 });
   await db.collection("shopOrders").createIndex({ clientEmail: 1, createdAt: -1 });
   await db.collection("shopOrders").createIndex({ orderNumber: 1 }, { unique: true });
+
+  await db.collection("btpProjects").createIndex({ reference: 1 }, { unique: true });
+  await db.collection("btpProjects").createIndex({ step: 1, updatedAt: -1 });
+  await db.collection("btpProjects").createIndex({ createdAt: -1 });
+  await db.collection("btpProjects").createIndex({ cancelled: 1 });
+  await db.collection("billingDocuments").createIndex({ number: 1 }, { unique: true });
+  await db.collection("billingDocuments").createIndex({ type: 1, createdAt: -1 });
+  await db.collection("billingDocuments").createIndex({ clientEmail: 1, createdAt: -1 });
+  await db.collection("billingDocuments").createIndex({ sourceType: 1, sourceId: 1 });
+  await db.collection("billingDocuments").createIndex({ createdAt: -1 });
+
+  const btpProjects = [
+    {
+      reference: "BTP-2026-0001",
+      title: "Villa Riviera — gros œuvre",
+      clientName: "Société Atlantique Habitat",
+      clientEmail: "projets@atlantique-habitat.ci",
+      clientPhone: "+225 07 00 11 22 33",
+      clientCompany: "Atlantique Habitat",
+      location: "Riviera Palmeraie, Abidjan",
+      description: "Construction villa R+1 avec piscine et clôture.",
+      step: "avancement",
+      quoteAmount: 85000000,
+      contractAmount: 82000000,
+      progressPercent: 65,
+      currency: "XOF",
+      startDate: "2026-03-01",
+      expectedEndDate: "2026-09-30",
+      deliveredAt: null,
+      notes: "Suivi hebdo vendredi.",
+      cancelled: false,
+    },
+    {
+      reference: "BTP-2026-0002",
+      title: "Rénovation immeuble Marcory",
+      clientName: "Mme Kouassi Ama",
+      clientEmail: "ama.kouassi@email.ci",
+      clientPhone: "+225 05 98 76 54 32",
+      clientCompany: "",
+      location: "Marcory Zone 4, Abidjan",
+      description: "Rénovation façade et toiture — 3 niveaux.",
+      step: "devis",
+      quoteAmount: 18500000,
+      progressPercent: 15,
+      currency: "XOF",
+      startDate: "",
+      expectedEndDate: "",
+      deliveredAt: null,
+      notes: "",
+      cancelled: false,
+    },
+    {
+      reference: "BTP-2026-0003",
+      title: "Aménagement showroom Plateau",
+      clientName: "Groupe NEO Commerce",
+      clientEmail: "travaux@neo-commerce.ci",
+      clientPhone: "+225 27 20 30 40 50",
+      clientCompany: "NEO Commerce",
+      location: "Plateau, Abidjan",
+      description: "Second œuvre et finitions showroom 280 m².",
+      step: "prospect",
+      quoteAmount: 0,
+      progressPercent: 5,
+      currency: "XOF",
+      startDate: "",
+      expectedEndDate: "",
+      deliveredAt: null,
+      notes: "Visite site prévue.",
+      cancelled: false,
+    },
+  ];
+
+  for (const item of btpProjects) {
+    await db.collection("btpProjects").updateOne(
+      { reference: item.reference },
+      {
+        $set: { ...item, updatedAt: now },
+        $setOnInsert: { createdAt: now },
+      },
+      { upsert: true },
+    );
+  }
 
   const products = [
     {
@@ -365,6 +539,159 @@ async function main() {
   await db.collection("blogPosts").createIndex({ slug: 1 }, { unique: true });
   await db.collection("testimonials").createIndex({ id: 1 }, { unique: true });
   await db.collection("travaux").createIndex({ id: 1 }, { unique: true });
+
+  // ——— Module RH (CDC §5.1) ———
+  await db.collection("employees").createIndex({ seedKey: 1 }, { unique: true, sparse: true });
+  await db.collection("counters").updateOne(
+    { _id: "employees" },
+    { $setOnInsert: { seq: 100 } },
+    { upsert: true },
+  );
+
+  const rhSeed = [
+    {
+      seedKey: "rh-amina-koffi",
+      employeeNumber: "EMP-0001",
+      firstName: "Amina",
+      lastName: "Koffi",
+      email: "amina.koffi@febis.ci",
+      phone: "+225 07 11 22 33 01",
+      department: "residences",
+      jobTitle: "Responsable résidences",
+      status: "actif",
+      hireDate: "2024-02-01",
+      address: "Cocody, Abidjan",
+      emergencyContact: "Konan Koffi · +225 07 00 00 00 01",
+      notes: "Référente check-in / check-out.",
+    },
+    {
+      seedKey: "rh-jean-traore",
+      employeeNumber: "EMP-0002",
+      firstName: "Jean",
+      lastName: "Traoré",
+      email: "jean.traore@febis.ci",
+      phone: "+225 07 11 22 33 02",
+      department: "btp",
+      jobTitle: "Chef de chantier",
+      status: "actif",
+      hireDate: "2023-06-15",
+      address: "Yopougon, Abidjan",
+      emergencyContact: "Fatou Traoré · +225 07 00 00 00 02",
+      notes: "Suivi projets BTP.",
+    },
+    {
+      seedKey: "rh-sara-ble",
+      employeeNumber: "EMP-0003",
+      firstName: "Sara",
+      lastName: "Blé",
+      email: "sara.ble@febis.ci",
+      phone: "+225 07 11 22 33 03",
+      department: "evenementiel",
+      jobTitle: "Coordinatrice événementiel",
+      status: "essai",
+      hireDate: "2026-01-10",
+      address: "Plateau, Abidjan",
+      emergencyContact: "Marc Blé · +225 07 00 00 00 03",
+      notes: "Période d’essai 3 mois.",
+    },
+  ];
+
+  for (const emp of rhSeed) {
+    const result = await db.collection("employees").findOneAndUpdate(
+      { seedKey: emp.seedKey },
+      {
+        $set: { ...emp, updatedAt: now },
+        $setOnInsert: { createdAt: now },
+      },
+      { upsert: true, returnDocument: "after" },
+    );
+    const empId = String(result?._id ?? "");
+    if (!empId) continue;
+
+    const name = `${emp.firstName} ${emp.lastName}`;
+    await db.collection("employmentContracts").updateOne(
+      { seedKey: `${emp.seedKey}-contrat` },
+      {
+        $set: {
+          seedKey: `${emp.seedKey}-contrat`,
+          employeeId: empId,
+          employeeName: name,
+          type: emp.department === "btp" ? "cdd" : "cdi",
+          status: "actif",
+          title: `Contrat ${emp.jobTitle}`,
+          startDate: emp.hireDate,
+          endDate: emp.department === "btp" ? "2026-12-31" : null,
+          salaryGross: emp.department === "btp" ? 450000 : 380000,
+          currency: "XOF",
+          notes: "Contrat seed démo FEBiS",
+          updatedAt: now,
+        },
+        $setOnInsert: { createdAt: now },
+      },
+      { upsert: true },
+    );
+
+    const today = now.toISOString().slice(0, 10);
+    await db.collection("attendances").updateOne(
+      { employeeId: empId, date: today },
+      {
+        $set: {
+          employeeId: empId,
+          employeeName: name,
+          date: today,
+          status: "present",
+          checkIn: "08:00",
+          checkOut: "17:00",
+          note: "Pointage seed",
+          updatedAt: now,
+        },
+        $setOnInsert: { createdAt: now },
+      },
+      { upsert: true },
+    );
+
+    if (emp.seedKey === "rh-sara-ble") {
+      await db.collection("leaves").updateOne(
+        { seedKey: `${emp.seedKey}-leave` },
+        {
+          $set: {
+            seedKey: `${emp.seedKey}-leave`,
+            employeeId: empId,
+            employeeName: name,
+            type: "conges_payes",
+            status: "demande",
+            startDate: "2026-09-01",
+            endDate: "2026-09-05",
+            days: 5,
+            reason: "Congés familiaux",
+            updatedAt: now,
+          },
+          $setOnInsert: { createdAt: now },
+        },
+        { upsert: true },
+      );
+    }
+
+    await db.collection("hrDocuments").updateOne(
+      { seedKey: `${emp.seedKey}-cni` },
+      {
+        $set: {
+          seedKey: `${emp.seedKey}-cni`,
+          employeeId: empId,
+          employeeName: name,
+          category: "identite",
+          title: "Pièce d’identité",
+          fileName: "cni-reference.pdf",
+          mimeType: "application/pdf",
+          fileUrl: "https://febis.ci/docs/rh/cni-reference.pdf",
+          notes: "Référence documentaire (seed)",
+          uploadedAt: now,
+        },
+        $setOnInsert: { createdAt: now },
+      },
+      { upsert: true },
+    );
+  }
 
   console.log("Seed OK — lancez aussi « Seed contenu accueil » dans /admin/dashboard");
   console.log("Admin: admin@febis.ci / FebisAdmin2026!");

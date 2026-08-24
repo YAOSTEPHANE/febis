@@ -1,18 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
+import { can } from "@/lib/rbac";
 import {
   createManualClient,
+  getCrmStats,
+  listClientTags,
   listClients,
 } from "@/lib/crm";
 import type { ClientStatus } from "@/lib/types";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
-  if (!session) {
+  if (!session || !can(session, "crm")) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   }
 
   const { searchParams } = request.nextUrl;
+  if (searchParams.get("tab") === "stats") {
+    return NextResponse.json({ stats: await getCrmStats() });
+  }
+  if (searchParams.get("tab") === "tags") {
+    return NextResponse.json({ tags: await listClientTags() });
+  }
+
   const q = searchParams.get("q") ?? undefined;
   const activity = searchParams.get("activity") ?? undefined;
   const status = (searchParams.get("status") ?? "all") as ClientStatus | "all";
@@ -24,7 +34,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const session = await getSession();
-  if (!session) {
+  if (!session || !can(session, "crm")) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   }
 
@@ -35,7 +45,7 @@ export async function POST(request: NextRequest) {
     company?: string;
     notes?: string;
     status?: ClientStatus;
-    tags?: string[];
+    tags?: string[] | string;
   };
 
   try {
@@ -49,6 +59,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Nom requis" }, { status: 400 });
   }
 
+  const tags =
+    typeof body.tags === "string"
+      ? body.tags
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean)
+      : body.tags;
+
   const client = await createManualClient({
     name,
     email: body.email,
@@ -56,7 +74,7 @@ export async function POST(request: NextRequest) {
     company: body.company,
     notes: body.notes,
     status: body.status,
-    tags: body.tags,
+    tags,
   });
 
   if (!client) {

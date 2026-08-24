@@ -1,3 +1,4 @@
+import "server-only";
 import { ObjectId, type Db } from "mongodb";
 import { getDb } from "@/lib/mongodb";
 
@@ -30,10 +31,12 @@ const DEFAULT_COLLECTIONS = [
   "reservations",
   "equipment",
   "eventQuotes",
+  "equipmentMovements",
   "products",
   "shopOrders",
   "invoices",
   "projects",
+  "btpProjects",
   "payments",
   "expenses",
   "blogPosts",

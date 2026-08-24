@@ -1,8 +1,15 @@
+import "server-only";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { ObjectId, type Db } from "mongodb";
 import { getDb } from "@/lib/mongodb";
-import { activityLabel, formatXof } from "@/lib/crm-shared";
 import { getFinanceDashboard } from "@/lib/finance";
+import {
+  activityLabel,
+  billingTypeLabel,
+  formatXof,
+  isBillingDocType,
+  type SerializedBillingDoc,
+} from "@/lib/facturation-shared";
 import type {
   Activity,
   BillingDocType,
@@ -13,9 +20,15 @@ import type {
   ReservationDoc,
   ShopOrderDoc,
 } from "@/lib/types";
-import { BILLING_DOC_TYPES } from "@/lib/types";
+import { linkProjectAndInvoice, touchClient } from "@/lib/crm";
 
-export { activityLabel, formatXof };
+export {
+  activityLabel,
+  billingTypeLabel,
+  formatXof,
+  isBillingDocType,
+};
+export type { SerializedBillingDoc } from "@/lib/facturation-shared";
 
 async function tryDb(): Promise<Db | null> {
   try {
@@ -30,42 +43,6 @@ function toIso(value: Date | string | undefined | null) {
   const d = value instanceof Date ? value : new Date(value);
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
-
-export function billingTypeLabel(type: string) {
-  switch (type) {
-    case "devis":
-      return "Devis";
-    case "facture":
-      return "Facture";
-    case "recu":
-      return "Reçu";
-    case "contrat":
-      return "Contrat";
-    case "rapport":
-      return "Rapport";
-    default:
-      return type;
-  }
-}
-
-export type SerializedBillingDoc = {
-  id: string;
-  type: BillingDocType;
-  number: string;
-  title: string;
-  activity: string;
-  clientName: string;
-  clientEmail: string;
-  clientPhone: string;
-  subtotal: number;
-  taxAmount: number;
-  total: number;
-  currency: "XOF";
-  notes: string;
-  sourceType: string;
-  sourceId: string;
-  createdAt: string;
-};
 
 function serializeDoc(
   doc: BillingDocumentDoc & { _id: ObjectId },
@@ -202,118 +179,255 @@ export async function createBillingDocument(
     .collection<BillingDocumentDoc>("billingDocuments")
     .insertOne(doc as BillingDocumentDoc & { _id?: ObjectId });
 
+  const docId = result.insertedId.toString();
+
+  // Sync CRM transversal (CDC §4.6) — fiche client + historique
+  try {
+    const activity =
+      doc.activity === "residences" ||
+      doc.activity === "btp" ||
+      doc.activity === "evenementiel" ||
+      doc.activity === "boutique"
+        ? doc.activity
+        : "general";
+
+    const { clientId } = await touchClient({
+      name: doc.clientName,
+      email: doc.clientEmail,
+      phone: doc.clientPhone,
+      company: doc.clientCompany,
+      activity,
+      interaction: {
+        type: doc.type === "facture" || doc.type === "devis" ? "facture" : "note",
+        title: `${doc.type.toUpperCase()} ${doc.number}`,
+        message: `${doc.title} · ${doc.total} XOF`,
+        refType: "invoice",
+        refId: docId,
+      },
+    });
+
+    if (clientId && (doc.type === "facture" || doc.type === "devis")) {
+      await db.collection("billingDocuments").updateOne(
+        { _id: result.insertedId } as never,
+        { $set: { clientId } },
+      );
+      await linkProjectAndInvoice({
+        clientId,
+        clientName: doc.clientName,
+        clientEmail: doc.clientEmail,
+        activity,
+        title: doc.title,
+        amount: doc.total,
+        sourceType: "manual",
+        sourceId: docId,
+        invoiceStatus: doc.type === "facture" ? "emise" : "brouillon",
+        projectStatus: "ouvert",
+      });
+    }
+  } catch {
+    // Ne bloque pas la facturation si le CRM est indisponible
+  }
+
   return serializeDoc({ ...doc, _id: result.insertedId } as unknown as BillingDocumentDoc & { _id: ObjectId });
 }
 
 export async function generateFromSource(input: {
   type: BillingDocType;
-  sourceType: "event_quote" | "invoice" | "reservation" | "shop_order";
+  sourceType:
+    | "event_quote"
+    | "invoice"
+    | "reservation"
+    | "shop_order"
+    | "btp";
   sourceId: string;
 }): Promise<SerializedBillingDoc | null> {
   const db = await tryDb();
   if (!db || !ObjectId.isValid(input.sourceId)) return null;
 
   if (input.sourceType === "event_quote") {
-    const quote = await db.collection<EventQuoteDoc>("eventQuotes").findOne({
-      _id: new ObjectId(input.sourceId) as unknown as string,
+    const quote = await db.collection("eventQuotes").findOne({
+      _id: new ObjectId(input.sourceId),
     });
     if (!quote) return null;
+    const q = quote as EventQuoteDoc & { _id: ObjectId };
     return createBillingDocument({
       type: input.type,
-      title: `Prestation événementielle · ${quote.eventDate}`,
+      title: `Prestation événementielle · ${q.eventDate}`,
       activity: "evenementiel",
-      clientName: quote.clientName,
-      clientEmail: quote.clientEmail,
-      clientPhone: quote.clientPhone,
-      lines: quote.lines.map((line) => ({
+      clientName: q.clientName,
+      clientEmail: q.clientEmail,
+      clientPhone: q.clientPhone,
+      lines: q.lines.map((line) => ({
         label: `${line.equipmentName} (${line.days} j)`,
         quantity: line.quantity,
         unitPrice: line.unitPrice * line.days,
         total: line.lineTotal,
       })),
-      notes: `Caution estimée : ${formatXof(quote.depositTotal)}. ${quote.message ?? ""}`.trim(),
+      notes: `Caution estimée : ${formatXof(q.depositTotal)}. ${q.message ?? ""}`.trim(),
       sourceType: "event_quote",
       sourceId: input.sourceId,
       meta: {
-        eventDate: quote.eventDate,
-        returnDate: quote.returnDate,
-        depositTotal: quote.depositTotal,
+        eventDate: q.eventDate,
+        returnDate: q.returnDate,
+        depositTotal: q.depositTotal,
       },
     });
   }
 
   if (input.sourceType === "invoice") {
-    const invoice = await db.collection<InvoiceDoc>("invoices").findOne({
-      _id: new ObjectId(input.sourceId) as unknown as string,
+    const invoice = await db.collection("invoices").findOne({
+      _id: new ObjectId(input.sourceId),
     });
     if (!invoice) return null;
+    const inv = invoice as InvoiceDoc & { _id: ObjectId };
     return createBillingDocument({
       type: input.type,
-      title: invoice.title,
-      activity: invoice.activity,
-      clientId: invoice.clientId,
-      clientName: invoice.clientName,
-      clientEmail: invoice.clientEmail,
+      title: inv.title,
+      activity: inv.activity,
+      clientId: inv.clientId,
+      clientName: inv.clientName,
+      clientEmail: inv.clientEmail,
       lines: [
         {
-          label: invoice.title,
+          label: inv.title,
           quantity: 1,
-          unitPrice: invoice.amount,
-          total: invoice.amount,
+          unitPrice: inv.amount,
+          total: inv.amount,
         },
       ],
       sourceType: "invoice",
       sourceId: input.sourceId,
-      meta: { invoiceNumber: invoice.number, invoiceStatus: invoice.status },
+      meta: { invoiceNumber: inv.number, invoiceStatus: inv.status },
     });
   }
 
   if (input.sourceType === "reservation") {
-    const reservation = await db
-      .collection<ReservationDoc>("reservations")
-      .findOne({ _id: new ObjectId(input.sourceId) as unknown as string });
+    const reservation = await db.collection("reservations").findOne({
+      _id: new ObjectId(input.sourceId),
+    });
     if (!reservation) return null;
+    const r = reservation as ReservationDoc & { _id: ObjectId };
     return createBillingDocument({
       type: input.type,
-      title: `Séjour · ${reservation.lodgingTitle}`,
+      title: `Séjour · ${r.lodgingTitle}`,
       activity: "residences",
-      clientName: reservation.guestName,
-      clientEmail: reservation.guestEmail,
-      clientPhone: reservation.guestPhone,
+      clientName: r.guestName,
+      clientEmail: r.guestEmail,
+      clientPhone: r.guestPhone,
       lines: [
         {
-          label: `${reservation.lodgingTitle} · ${reservation.nights} nuit(s)`,
-          quantity: reservation.nights,
-          unitPrice: Math.round(reservation.totalAmount / Math.max(1, reservation.nights)),
-          total: reservation.totalAmount,
+          label: `${r.lodgingTitle} · ${r.nights} nuit(s)`,
+          quantity: r.nights,
+          unitPrice: Math.round(r.totalAmount / Math.max(1, r.nights)),
+          total: r.totalAmount,
         },
       ],
-      notes: `Acompte prévu : ${formatXof(reservation.depositAmount)}. ${reservation.checkIn} → ${reservation.checkOut}`,
+      notes: `Acompte prévu : ${formatXof(r.depositAmount)}. ${r.checkIn} → ${r.checkOut}`,
       sourceType: "reservation",
       sourceId: input.sourceId,
     });
   }
 
-  const order = await db.collection<ShopOrderDoc>("shopOrders").findOne({
-    _id: new ObjectId(input.sourceId) as unknown as string,
+  if (input.sourceType === "btp") {
+    const project = await db.collection("btpProjects").findOne({
+      _id: new ObjectId(input.sourceId),
+    });
+    if (!project) return null;
+    const p = project as {
+      _id: ObjectId;
+      title: string;
+      clientName: string;
+      clientEmail?: string;
+      clientPhone?: string;
+      clientCompany?: string;
+      quoteAmount?: number;
+      contractAmount?: number;
+      location?: string;
+      reference?: string;
+    };
+    const amount = p.contractAmount || p.quoteAmount || 0;
+    return createBillingDocument({
+      type: input.type,
+      title: `BTP · ${p.title}`,
+      activity: "btp",
+      clientName: p.clientName,
+      clientEmail: p.clientEmail,
+      clientPhone: p.clientPhone,
+      clientCompany: p.clientCompany,
+      lines: [
+        {
+          label: `${p.reference ?? "Chantier"} · ${p.location ?? ""}`.trim(),
+          quantity: 1,
+          unitPrice: amount,
+          total: amount,
+        },
+      ],
+      notes:
+        input.type === "contrat"
+          ? "Contrat de travaux FEBiS — exécution selon planning convenu."
+          : undefined,
+      sourceType: "btp",
+      sourceId: input.sourceId,
+      meta: { btpProjectId: input.sourceId },
+    });
+  }
+
+  const order = await db.collection("shopOrders").findOne({
+    _id: new ObjectId(input.sourceId),
   });
   if (!order) return null;
+  const o = order as ShopOrderDoc & { _id: ObjectId };
   return createBillingDocument({
     type: input.type,
-    title: `Commande boutique ${order.orderNumber}`,
+    title: `Commande boutique ${o.orderNumber}`,
     activity: "boutique",
-    clientName: order.clientName,
-    clientEmail: order.clientEmail,
-    clientPhone: order.clientPhone,
-    lines: order.lines.map((line) => ({
+    clientName: o.clientName,
+    clientEmail: o.clientEmail,
+    clientPhone: o.clientPhone,
+    lines: o.lines.map((line) => ({
       label: `${line.productName}${line.size || line.color ? ` (${[line.color, line.size].filter(Boolean).join(" / ")})` : ""}`,
       quantity: line.quantity,
       unitPrice: line.unitPrice,
       total: line.lineTotal,
     })),
-    notes: order.deliveryAddress,
+    notes: o.deliveryAddress,
     sourceType: "shop_order",
     sourceId: input.sourceId,
+  });
+}
+
+/** Duplique un document vers un autre type (ex. devis → facture / contrat / reçu). */
+export async function convertBillingDocument(
+  id: string,
+  toType: BillingDocType,
+): Promise<SerializedBillingDoc | null> {
+  const source = await getBillingDocument(id);
+  if (!source) return null;
+
+  return createBillingDocument({
+    type: toType,
+    title: source.title,
+    activity: source.activity,
+    clientId: source.clientId,
+    clientName: source.clientName,
+    clientEmail: source.clientEmail,
+    clientPhone: source.clientPhone,
+    clientCompany: source.clientCompany,
+    lines: source.lines,
+    taxRate: source.taxRate,
+    notes:
+      toType === "recu"
+        ? `Reçu établi à partir de ${source.number}. ${source.notes ?? ""}`.trim()
+        : toType === "contrat"
+          ? `Contrat établi à partir de ${source.number}. ${source.notes ?? ""}`.trim()
+          : source.notes,
+    validUntil: source.validUntil,
+    sourceType: "manual",
+    sourceId: id,
+    meta: {
+      convertedFrom: source.number,
+      convertedFromType: source.type,
+    },
   });
 }
 
@@ -657,32 +771,44 @@ export async function buildBillingPdf(
 export async function listSourceOptions() {
   const db = await tryDb();
   if (!db) {
-    return { quotes: [], invoices: [], reservations: [], orders: [] };
+    return {
+      quotes: [],
+      invoices: [],
+      reservations: [],
+      orders: [],
+      btp: [],
+    };
   }
 
-  const [quotes, invoices, reservations, orders] = await Promise.all([
+  const [quotes, invoices, reservations, orders, btp] = await Promise.all([
     db
-      .collection<EventQuoteDoc>("eventQuotes")
+      .collection("eventQuotes")
       .find({})
       .sort({ createdAt: -1 })
       .limit(30)
       .toArray(),
     db
-      .collection<InvoiceDoc>("invoices")
+      .collection("invoices")
       .find({})
       .sort({ createdAt: -1 })
       .limit(30)
       .toArray(),
     db
-      .collection<ReservationDoc>("reservations")
+      .collection("reservations")
       .find({})
       .sort({ createdAt: -1 })
       .limit(30)
       .toArray(),
     db
-      .collection<ShopOrderDoc>("shopOrders")
+      .collection("shopOrders")
       .find({})
       .sort({ createdAt: -1 })
+      .limit(30)
+      .toArray(),
+    db
+      .collection("btpProjects")
+      .find({ cancelled: { $ne: true } })
+      .sort({ updatedAt: -1 })
       .limit(30)
       .toArray(),
   ]);
@@ -690,23 +816,23 @@ export async function listSourceOptions() {
   return {
     quotes: quotes.map((q) => ({
       id: String(q._id),
-      label: `${q.clientName} · ${q.eventDate} · ${formatXof(q.rentalTotal)}`,
+      label: `${String(q.clientName)} · ${String(q.eventDate)} · ${formatXof(Number(q.rentalTotal) || 0)}`,
     })),
     invoices: invoices.map((i) => ({
       id: String(i._id),
-      label: `${i.number} · ${i.clientName} · ${formatXof(i.amount)}`,
+      label: `${String(i.number)} · ${String(i.clientName)} · ${formatXof(Number(i.amount) || 0)}`,
     })),
     reservations: reservations.map((r) => ({
       id: String(r._id),
-      label: `${r.guestName} · ${r.lodgingTitle} · ${formatXof(r.totalAmount)}`,
+      label: `${String(r.guestName)} · ${String(r.lodgingTitle)} · ${formatXof(Number(r.totalAmount) || 0)}`,
     })),
     orders: orders.map((o) => ({
       id: String(o._id),
-      label: `${o.orderNumber} · ${o.clientName} · ${formatXof(o.totalAmount)}`,
+      label: `${String(o.orderNumber)} · ${String(o.clientName)} · ${formatXof(Number(o.totalAmount) || 0)}`,
+    })),
+    btp: btp.map((p) => ({
+      id: String(p._id),
+      label: `${String(p.reference ?? "")} · ${String(p.title)} · ${formatXof(Number(p.contractAmount || p.quoteAmount) || 0)}`,
     })),
   };
-}
-
-export function isBillingDocType(value: string): value is BillingDocType {
-  return (BILLING_DOC_TYPES as readonly string[]).includes(value);
 }

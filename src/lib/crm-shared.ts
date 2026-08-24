@@ -25,6 +25,8 @@ export type SerializedInteraction = {
   refType?: string;
   refId?: string;
   at: string;
+  /** Lien admin vers le document métier source */
+  href?: string | null;
 };
 
 export type SerializedInvoice = {
@@ -40,6 +42,7 @@ export type SerializedInvoice = {
   sourceType?: string;
   sourceId?: string;
   createdAt: string;
+  href?: string | null;
 };
 
 export type SerializedProject = {
@@ -55,6 +58,17 @@ export type SerializedProject = {
   sourceId?: string;
   createdAt: string;
   updatedAt: string;
+  href?: string | null;
+};
+
+export type CrmStats = {
+  total: number;
+  prospects: number;
+  actifs: number;
+  inactifs: number;
+  withInteractions: number;
+  linkedInvoices: number;
+  linkedProjects: number;
 };
 
 export function interactionTypeLabel(type: string) {
@@ -99,10 +113,96 @@ export function activityLabel(activity: string) {
   }
 }
 
+export function clientStatusLabel(status: string) {
+  switch (status) {
+    case "prospect":
+      return "Prospect";
+    case "actif":
+      return "Actif";
+    case "inactif":
+      return "Inactif";
+    default:
+      return status;
+  }
+}
+
+export function invoiceStatusLabel(status: string) {
+  switch (status) {
+    case "brouillon":
+      return "Brouillon";
+    case "emise":
+      return "Émise";
+    case "payee":
+      return "Payée";
+    case "annulee":
+      return "Annulée";
+    default:
+      return status;
+  }
+}
+
+export function projectStatusLabel(status: string) {
+  switch (status) {
+    case "ouvert":
+      return "Ouvert";
+    case "en_cours":
+      return "En cours";
+    case "termine":
+      return "Terminé";
+    case "annule":
+      return "Annulé";
+    default:
+      return status;
+  }
+}
+
 export function formatXof(amount: number) {
   return new Intl.NumberFormat("fr-FR", {
     style: "currency",
     currency: "XOF",
     maximumFractionDigits: 0,
   }).format(amount);
+}
+
+/** Deep-link admin vers la source d’une interaction / projet / facture */
+export function crmSourceHref(
+  refType?: string | null,
+  refId?: string | null,
+  sourceType?: string | null,
+): string | null {
+  const id = refId?.trim();
+  if (!id) return null;
+
+  const kind = refType || sourceType || "";
+  switch (kind) {
+    case "reservation":
+      return `/admin/dashboard/reservations/${id}`;
+    case "event_quote":
+      return `/admin/dashboard/evenementiel/${id}`;
+    case "shop_order":
+      return `/admin/dashboard/boutique/${id}`;
+    case "btp":
+      return `/admin/dashboard/btp/${id}`;
+    case "project":
+      if (sourceType === "btp") return `/admin/dashboard/btp/${id}`;
+      if (sourceType === "reservation")
+        return `/admin/dashboard/reservations/${id}`;
+      if (sourceType === "event_quote")
+        return `/admin/dashboard/evenementiel/${id}`;
+      if (sourceType === "shop_order")
+        return `/admin/dashboard/boutique/${id}`;
+      return null;
+    case "invoice":
+    case "contact":
+      return null;
+    default:
+      if (sourceType === "btp") return `/admin/dashboard/btp/${id}`;
+      if (sourceType === "reservation")
+        return `/admin/dashboard/reservations/${id}`;
+      if (sourceType === "event_quote")
+        return `/admin/dashboard/evenementiel/${id}`;
+      if (sourceType === "shop_order")
+        return `/admin/dashboard/boutique/${id}`;
+      return null;
+  }
 }

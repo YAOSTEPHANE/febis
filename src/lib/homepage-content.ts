@@ -204,6 +204,19 @@ export type AdminNavItem = {
   description: string;
   group: AdminNavGroup;
   mark: string;
+  /** Permission RBAC requise (CDC §4.10) */
+  permission:
+    | "dashboard"
+    | "vitrine"
+    | "crm"
+    | "finance"
+    | "facturation"
+    | "paiements"
+    | "operations"
+    | "users"
+    | "notifications"
+    | "backup"
+    | "search";
 };
 
 export const ADMIN_NAV_GROUPS: {
@@ -220,10 +233,51 @@ export const ADMIN_NAV_GROUPS: {
 export const ADMIN_NAV: AdminNavItem[] = [
   {
     href: "/admin/dashboard",
-    label: "Vue d’ensemble",
-    description: "Compteurs et accès rapide",
+    label: "Tableau de bord",
+    description: "Indicateurs, contenu & exploitation",
     group: "overview",
-    mark: "VO",
+    mark: "TB",
+    permission: "dashboard",
+  },
+  {
+    href: "/admin/dashboard/direction",
+    label: "Direction",
+    description: "CA, occupation, stock, projets",
+    group: "overview",
+    mark: "DI",
+    permission: "dashboard",
+  },
+  {
+    href: "/admin/dashboard/recherche",
+    label: "Recherche",
+    description: "Moteur multi-critères",
+    group: "overview",
+    mark: "RE",
+    permission: "search",
+  },
+  {
+    href: "/admin/dashboard/notifications",
+    label: "Notifications",
+    description: "Email, WhatsApp, SMS",
+    group: "overview",
+    mark: "NO",
+    permission: "notifications",
+  },
+  {
+    href: "/admin/dashboard/utilisateurs",
+    label: "Utilisateurs",
+    description: "Profils & droits d’accès",
+    group: "overview",
+    mark: "UT",
+    permission: "users",
+  },
+  {
+    href: "/admin/dashboard/sauvegardes",
+    label: "Sauvegardes",
+    description: "Snapshots automatiques",
+    group: "overview",
+    mark: "SA",
+    permission: "backup",
   },
   {
     href: "/admin/dashboard/hero",
@@ -231,6 +285,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
     description: "Titre, CTA, marque",
     group: "vitrine",
     mark: "HE",
+    permission: "vitrine",
   },
   {
     href: "/admin/dashboard/categories",
@@ -238,6 +293,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
     description: "Types de logements",
     group: "vitrine",
     mark: "CA",
+    permission: "vitrine",
   },
   {
     href: "/admin/dashboard/stats",
@@ -245,6 +301,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
     description: "Indicateurs confiance",
     group: "vitrine",
     mark: "ST",
+    permission: "vitrine",
   },
   {
     href: "/admin/dashboard/poles",
@@ -252,6 +309,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
     description: "Quatre activités",
     group: "vitrine",
     mark: "PÔ",
+    permission: "vitrine",
   },
   {
     href: "/admin/dashboard/blog",
@@ -259,6 +317,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
     description: "Articles",
     group: "vitrine",
     mark: "BL",
+    permission: "vitrine",
   },
   {
     href: "/admin/dashboard/temoignages",
@@ -266,6 +325,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
     description: "Avis clients",
     group: "vitrine",
     mark: "TÉ",
+    permission: "vitrine",
   },
   {
     href: "/admin/dashboard/plateforme",
@@ -273,27 +333,47 @@ export const ADMIN_NAV: AdminNavItem[] = [
     description: "Modules transverses",
     group: "vitrine",
     mark: "PL",
+    permission: "vitrine",
   },
   {
     href: "/admin/dashboard/residences",
     label: "Résidences",
-    description: "Logements à la une",
+    description: "Logements & statuts",
     group: "activites",
     mark: "RÉ",
+    permission: "operations",
+  },
+  {
+    href: "/admin/dashboard/reservations",
+    label: "Réservations",
+    description: "Demandes & séjours",
+    group: "activites",
+    mark: "RV",
+    permission: "operations",
+  },
+  {
+    href: "/admin/dashboard/btp",
+    label: "BTP",
+    description: "Chantiers & devis",
+    group: "activites",
+    mark: "BT",
+    permission: "operations",
   },
   {
     href: "/admin/dashboard/evenementiel",
     label: "Événementiel",
-    description: "Catalogue matériel",
+    description: "Matériel, devis & sorties",
     group: "activites",
     mark: "ÉV",
+    permission: "operations",
   },
   {
     href: "/admin/dashboard/travaux",
     label: "Travaux",
-    description: "Portfolio BTP & events",
+    description: "Portfolio vitrine",
     group: "activites",
     mark: "TR",
+    permission: "vitrine",
   },
   {
     href: "/admin/dashboard/boutique",
@@ -301,20 +381,47 @@ export const ADMIN_NAV: AdminNavItem[] = [
     description: "Produits, stock & ventes",
     group: "activites",
     mark: "BQ",
+    permission: "operations",
   },
   {
     href: "/admin/dashboard/crm",
     label: "CRM",
-    description: "Clients & historique",
+    description: "Clients, historique & liens",
     group: "transverse",
     mark: "CRM",
+    permission: "crm",
+  },
+  {
+    href: "/admin/dashboard/finance",
+    label: "Finance",
+    description: "Revenus, dépenses, impayés",
+    group: "transverse",
+    mark: "FI",
+    permission: "finance",
+  },
+  {
+    href: "/admin/dashboard/paiements",
+    label: "Paiements",
+    description: "Mobile Money, virement, espèces",
+    group: "transverse",
+    mark: "PA",
+    permission: "paiements",
+  },
+  {
+    href: "/admin/dashboard/facturation",
+    label: "Facturation",
+    description: "Devis, factures, PDF",
+    group: "transverse",
+    mark: "FA",
+    permission: "facturation",
   },
   {
     href: "/admin/dashboard/rh",
     label: "RH",
-    description: "Employés & contrats",
+    description: "Dossiers, contrats, congés",
     group: "transverse",
     mark: "RH",
+    permission: "operations",
   },
   {
     href: "/admin/dashboard/contacts",
@@ -322,6 +429,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
     description: "Messages vitrine",
     group: "inbox",
     mark: "CO",
+    permission: "operations",
   },
 ];
 

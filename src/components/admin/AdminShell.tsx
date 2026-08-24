@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { ADMIN_NAV, ADMIN_NAV_GROUPS } from "@/lib/homepage-content";
 import { LogoutButton } from "@/components/LogoutButton";
 import { cn } from "@/lib/cn";
+import type { Permission } from "@/lib/rbac-shared";
 
 function isActive(pathname: string, href: string) {
   return href === "/admin/dashboard"
@@ -17,13 +18,17 @@ export function AdminShell({
   children,
   name,
   role,
+  permissions,
 }: {
   children: React.ReactNode;
   name: string;
   role: string;
+  permissions: Permission[];
 }) {
   const pathname = usePathname();
-  const current = ADMIN_NAV.find((item) => isActive(pathname, item.href));
+  const allowed = new Set(permissions);
+  const nav = ADMIN_NAV.filter((item) => allowed.has(item.permission));
+  const current = nav.find((item) => isActive(pathname, item.href));
   const initials = name
     .split(/\s+/)
     .filter(Boolean)
@@ -58,7 +63,7 @@ export function AdminShell({
 
           <nav className="relative z-10 flex-1 overflow-y-auto px-3 py-4">
             {ADMIN_NAV_GROUPS.map((group) => {
-              const items = ADMIN_NAV.filter((item) => item.group === group.id);
+              const items = nav.filter((item) => item.group === group.id);
               if (items.length === 0) return null;
               return (
                 <div key={group.id} className="mb-5">
@@ -99,30 +104,6 @@ export function AdminShell({
               );
             })}
           </nav>
-
-          <div className="relative z-10 mt-auto space-y-3 border-t border-white/8 p-4">
-            <div className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/5 px-3 py-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-febis-red to-febis-red-deep text-xs font-extrabold text-white">
-                {initials || "FB"}
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-bold text-white">
-                  {name}
-                </span>
-                <span className="block truncate text-[11px] text-white/45">
-                  {role}
-                </span>
-              </span>
-            </div>
-            <Link
-              href="/"
-              target="_blank"
-              className="block rounded-xl border border-[#f0d78c]/25 bg-[#f0d78c]/8 py-2 text-center text-sm font-semibold text-[#f0d78c] transition hover:bg-[#f0d78c]/15"
-            >
-              Ouvrir le site ↗
-            </Link>
-            <LogoutButton className="w-full justify-center border-white/15 bg-white/5 text-white hover:border-febis-red/50 hover:bg-white/10 hover:text-white" />
-          </div>
         </aside>
 
         <div className="min-w-0 flex-1">
@@ -148,23 +129,14 @@ export function AdminShell({
                   {current?.description ?? "Espace professionnel FEBiS"}
                 </p>
               </div>
-              <div className="flex shrink-0 items-center gap-2.5">
-                <Link
-                  href="/"
-                  target="_blank"
-                  className="hidden rounded-xl border border-febis-ink/10 bg-white/90 px-3.5 py-2 text-sm font-semibold text-febis-ink/80 transition hover:border-febis-red/35 hover:text-febis-red sm:inline-flex"
-                >
-                  Voir le site
-                </Link>
-                <div className="md:hidden">
-                  <LogoutButton />
-                </div>
-                <div className="hidden items-center gap-2.5 rounded-xl border border-febis-ink/8 bg-white/80 px-2.5 py-1.5 md:flex">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-febis-red/10 text-[11px] font-extrabold text-febis-red">
+
+              <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+                <div className="flex items-center gap-2.5 rounded-xl border border-febis-ink/8 bg-white/90 px-2.5 py-1.5">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-febis-red to-febis-red-deep text-[11px] font-extrabold text-white">
                     {initials || "FB"}
                   </span>
-                  <span>
-                    <span className="block text-sm font-semibold text-febis-ink">
+                  <span className="hidden min-w-0 sm:block">
+                    <span className="block max-w-[140px] truncate text-sm font-semibold text-febis-ink lg:max-w-[200px]">
                       {name}
                     </span>
                     <span className="block text-[11px] text-febis-ink/45">
@@ -172,11 +144,21 @@ export function AdminShell({
                     </span>
                   </span>
                 </div>
+
+                <Link
+                  href="/"
+                  target="_blank"
+                  className="hidden rounded-xl border border-[#c9a227]/40 bg-[#c9a227]/10 px-3.5 py-2 text-sm font-semibold text-[#8a7010] transition hover:bg-[#c9a227]/18 sm:inline-flex"
+                >
+                  Ouvrir le site ↗
+                </Link>
+
+                <LogoutButton className="justify-center" />
               </div>
             </div>
 
             <div className="flex gap-1.5 overflow-x-auto px-4 pb-3 md:hidden">
-              {ADMIN_NAV.map((item) => {
+              {nav.map((item) => {
                 const active = isActive(pathname, item.href);
                 return (
                   <Link

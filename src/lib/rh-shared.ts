@@ -90,6 +90,15 @@ export type SerializedHrDocument = {
   uploadedAt: string;
 };
 
+export type RhOverview = {
+  employeesTotal: number;
+  employeesActive: number;
+  leavesPending: number;
+  attendanceToday: number;
+  contractsExpiring: number;
+  documentsTotal: number;
+};
+
 export function departmentLabel(value: string) {
   switch (value) {
     case "direction":
@@ -140,6 +149,21 @@ export function contractTypeLabel(value: string) {
       return "Freelance";
     case "apprentissage":
       return "Apprentissage";
+    default:
+      return value;
+  }
+}
+
+export function contractStatusLabel(value: string) {
+  switch (value) {
+    case "brouillon":
+      return "Brouillon";
+    case "actif":
+      return "Actif";
+    case "expire":
+      return "Expiré";
+    case "resilie":
+      return "Résilié";
     default:
       return value;
   }
