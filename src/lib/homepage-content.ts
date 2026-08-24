@@ -137,7 +137,7 @@ export const DEFAULT_POLES: PoleContent[] = [
       "Produits, variantes, stocks, tunnel de commande et historique des ventes.",
     image: "/images/pole-boutique.jpg",
     points: ["Fiches & stock", "Variantes", "Panier → commande"],
-    href: "/#boutique",
+    href: "/boutique",
   },
 ];
 
@@ -191,7 +191,12 @@ export const HOMEPAGE_DEFAULTS: HomepagePayloadMap = {
   platform: DEFAULT_PLATFORM,
 };
 
-export type AdminNavGroup = "overview" | "vitrine" | "activites" | "inbox";
+export type AdminNavGroup =
+  | "overview"
+  | "vitrine"
+  | "activites"
+  | "transverse"
+  | "inbox";
 
 export type AdminNavItem = {
   href: string;
@@ -208,6 +213,7 @@ export const ADMIN_NAV_GROUPS: {
   { id: "overview", label: "Pilotage" },
   { id: "vitrine", label: "Vitrine" },
   { id: "activites", label: "Activités" },
+  { id: "transverse", label: "Transverse" },
   { id: "inbox", label: "Demandes" },
 ];
 
@@ -288,6 +294,27 @@ export const ADMIN_NAV: AdminNavItem[] = [
     description: "Portfolio BTP & events",
     group: "activites",
     mark: "TR",
+  },
+  {
+    href: "/admin/dashboard/boutique",
+    label: "Boutique",
+    description: "Produits, stock & ventes",
+    group: "activites",
+    mark: "BQ",
+  },
+  {
+    href: "/admin/dashboard/crm",
+    label: "CRM",
+    description: "Clients & historique",
+    group: "transverse",
+    mark: "CRM",
+  },
+  {
+    href: "/admin/dashboard/rh",
+    label: "RH",
+    description: "Employés & contrats",
+    group: "transverse",
+    mark: "RH",
   },
   {
     href: "/admin/dashboard/contacts",

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/mongodb";
 import { ACTIVITIES } from "@/lib/types";
+import { touchClient } from "@/lib/crm";
 
 type ContactBody = {
   name?: unknown;
@@ -53,12 +54,12 @@ export async function POST(request: NextRequest) {
   const activity = allowedActivities.includes(
     activityRaw as (typeof allowedActivities)[number],
   )
-    ? activityRaw
+    ? (activityRaw as (typeof allowedActivities)[number])
     : "general";
 
   try {
     const db = await getDb();
-    await db.collection("contacts").insertOne({
+    const contactResult = await db.collection("contacts").insertOne({
       name,
       email: email.toLowerCase(),
       phone: phone || null,
@@ -69,45 +70,20 @@ export async function POST(request: NextRequest) {
       source: "site-vitrine",
     });
 
-    // CRM transversal : client unique partagé (CDC §4.6)
-    const clientEmail = email.toLowerCase();
-    const clients = db.collection<{
-      email: string;
-      name: string;
-      phone: string | null;
-      company: string | null;
-      createdAt: Date;
-      updatedAt: Date;
-      interactions: Array<{
-        type: string;
-        activity: string;
-        message: string;
-        at: Date;
-      }>;
-    }>("clients");
-
-    await clients.updateOne(
-      { email: clientEmail },
-      {
-        $set: {
-          name,
-          email: clientEmail,
-          phone: phone || null,
-          company: company || null,
-          updatedAt: new Date(),
-        },
-        $setOnInsert: { createdAt: new Date() },
-        $push: {
-          interactions: {
-            type: "contact_form",
-            activity,
-            message,
-            at: new Date(),
-          },
-        },
+    await touchClient({
+      name,
+      email,
+      phone: phone || undefined,
+      company: company || undefined,
+      activity,
+      interaction: {
+        type: "contact_form",
+        title: "Message vitrine",
+        message,
+        refType: "contact",
+        refId: contactResult.insertedId.toString(),
       },
-      { upsert: true },
-    );
+    });
 
     return NextResponse.json({ ok: true });
   } catch (error) {

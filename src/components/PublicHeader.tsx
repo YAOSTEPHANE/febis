@@ -10,6 +10,7 @@ const links = [
   { href: "/", label: "Accueil" },
   { href: "/residences", label: "Résidences" },
   { href: "/evenementiel", label: "Événementiel" },
+  { href: "/boutique", label: "Boutique" },
   { href: "/blog", label: "Blog" },
   { href: "/#temoignages", label: "Avis" },
   { href: "/#contact", label: "Contact" },
@@ -49,8 +50,10 @@ export function PublicHeader() {
         <nav className="hidden items-center gap-7 md:flex">
           {links.map((link) => {
             const active =
-              link.href === "/residences"
-                ? pathname.startsWith("/residences")
+              link.href === "/residences" ||
+              link.href === "/evenementiel" ||
+              link.href === "/boutique"
+                ? pathname.startsWith(link.href)
                 : pathname === link.href;
             return (
               <Link

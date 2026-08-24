@@ -66,6 +66,192 @@ export type ClientDoc = {
   phone?: string;
   company?: string;
   notes?: string;
+  tags?: string[];
+  modules?: Array<Activity | "general">;
+  status?: ClientStatus;
+  interactions?: ClientInteraction[];
+  lastInteractionAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export const CLIENT_STATUSES = ["prospect", "actif", "inactif"] as const;
+export type ClientStatus = (typeof CLIENT_STATUSES)[number];
+
+export const INTERACTION_TYPES = [
+  "contact_form",
+  "reservation_demande",
+  "event_quote",
+  "shop_order",
+  "note",
+  "appel",
+  "email",
+  "facture",
+  "projet",
+] as const;
+export type InteractionType = (typeof INTERACTION_TYPES)[number];
+
+export type ClientInteraction = {
+  id: string;
+  type: InteractionType | string;
+  activity: Activity | "general" | string;
+  title?: string;
+  message: string;
+  refType?: "reservation" | "event_quote" | "shop_order" | "invoice" | "project" | "contact";
+  refId?: string;
+  at: Date;
+};
+
+export const INVOICE_STATUSES = [
+  "brouillon",
+  "emise",
+  "payee",
+  "annulee",
+] as const;
+export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
+
+export type InvoiceDoc = {
+  _id?: string;
+  number: string;
+  clientId: string;
+  clientEmail?: string;
+  clientName: string;
+  activity: Activity | "general";
+  title: string;
+  amount: number;
+  currency: "XOF";
+  status: InvoiceStatus;
+  sourceType?: "reservation" | "event_quote" | "shop_order" | "manual";
+  sourceId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export const PROJECT_STATUSES = [
+  "ouvert",
+  "en_cours",
+  "termine",
+  "annule",
+] as const;
+export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
+
+export type ProjectDoc = {
+  _id?: string;
+  title: string;
+  clientId: string;
+  clientEmail?: string;
+  clientName: string;
+  activity: Activity | "general";
+  status: ProjectStatus;
+  amount?: number;
+  currency?: "XOF";
+  sourceType?: "reservation" | "event_quote" | "shop_order" | "btp" | "manual";
+  sourceId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export const EXPENSE_CATEGORIES = [
+  "achats",
+  "salaires",
+  "maintenance",
+  "logistique",
+  "marketing",
+  "loyers",
+  "autres",
+] as const;
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+
+export type ExpenseDoc = {
+  _id?: string;
+  activity: Activity;
+  category: ExpenseCategory;
+  title: string;
+  amount: number;
+  currency: "XOF";
+  paymentChannel?: PaymentChannel;
+  reference?: string;
+  notes?: string;
+  spentAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export const PAYMENT_DIRECTIONS = ["entrant", "sortant"] as const;
+export type PaymentDirection = (typeof PAYMENT_DIRECTIONS)[number];
+
+export const PAYMENT_STATUSES = [
+  "en_attente",
+  "confirme",
+  "echec",
+  "annule",
+] as const;
+export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
+
+export type PaymentDoc = {
+  _id?: string;
+  activity: Activity | "general";
+  channel: PaymentChannel;
+  direction: PaymentDirection;
+  amount: number;
+  currency: "XOF";
+  status: PaymentStatus;
+  title: string;
+  reference?: string;
+  clientId?: string;
+  clientName?: string;
+  clientPhone?: string;
+  invoiceId?: string;
+  invoiceNumber?: string;
+  notes?: string;
+  /** Opérateur MM : wave (cadrage CDC §4.9) */
+  provider?: "wave" | "manual";
+  providerSessionId?: string;
+  providerCheckoutUrl?: string;
+  providerPayload?: Record<string, string | number | boolean | null>;
+  paidAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export const BILLING_DOC_TYPES = [
+  "devis",
+  "facture",
+  "recu",
+  "contrat",
+  "rapport",
+] as const;
+export type BillingDocType = (typeof BILLING_DOC_TYPES)[number];
+
+export type BillingLine = {
+  label: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+};
+
+export type BillingDocumentDoc = {
+  _id?: string;
+  type: BillingDocType;
+  number: string;
+  title: string;
+  activity: Activity | "general";
+  clientId?: string;
+  clientName: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  clientCompany?: string;
+  lines: BillingLine[];
+  subtotal: number;
+  taxRate: number;
+  taxAmount: number;
+  total: number;
+  currency: "XOF";
+  notes?: string;
+  validUntil?: string;
+  sourceType?: "reservation" | "event_quote" | "shop_order" | "invoice" | "manual" | "report";
+  sourceId?: string;
+  meta?: Record<string, string | number | boolean>;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -283,4 +469,157 @@ export type ShopOrderDoc = {
   status: OrderStatus;
   createdAt: Date;
   updatedAt: Date;
+};
+
+/* ——— Module RH ——— */
+
+export const EMPLOYEE_STATUSES = [
+  "actif",
+  "essai",
+  "suspendu",
+  "sortie",
+] as const;
+export type EmployeeStatus = (typeof EMPLOYEE_STATUSES)[number];
+
+export const EMPLOYEE_DEPARTMENTS = [
+  "direction",
+  "residences",
+  "btp",
+  "evenementiel",
+  "boutique",
+  "compta",
+  "rh",
+  "operations",
+] as const;
+export type EmployeeDepartment = (typeof EMPLOYEE_DEPARTMENTS)[number];
+
+export type EmployeeDoc = {
+  _id?: string;
+  employeeNumber: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  department: EmployeeDepartment;
+  jobTitle: string;
+  status: EmployeeStatus;
+  hireDate: string; // YYYY-MM-DD
+  endDate?: string;
+  address?: string;
+  emergencyContact?: string;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export const CONTRACT_TYPES = [
+  "cdi",
+  "cdd",
+  "stage",
+  "freelance",
+  "apprentissage",
+] as const;
+export type ContractType = (typeof CONTRACT_TYPES)[number];
+
+export const CONTRACT_STATUSES = [
+  "brouillon",
+  "actif",
+  "expire",
+  "resilie",
+] as const;
+export type ContractStatus = (typeof CONTRACT_STATUSES)[number];
+
+export type EmploymentContractDoc = {
+  _id?: string;
+  employeeId: string;
+  employeeName: string;
+  type: ContractType;
+  status: ContractStatus;
+  title: string;
+  startDate: string;
+  endDate?: string;
+  salaryGross?: number;
+  currency: "XOF";
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export const ATTENDANCE_STATUSES = [
+  "present",
+  "absent",
+  "retard",
+  "teletravail",
+  "mission",
+] as const;
+export type AttendanceStatus = (typeof ATTENDANCE_STATUSES)[number];
+
+export type AttendanceDoc = {
+  _id?: string;
+  employeeId: string;
+  employeeName: string;
+  date: string; // YYYY-MM-DD
+  status: AttendanceStatus;
+  checkIn?: string; // HH:mm
+  checkOut?: string;
+  note?: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export const LEAVE_TYPES = [
+  "conges_payes",
+  "maladie",
+  "sans_solde",
+  "maternite",
+  "paternite",
+  "exceptionnel",
+] as const;
+export type LeaveType = (typeof LEAVE_TYPES)[number];
+
+export const LEAVE_STATUSES = [
+  "demande",
+  "approuve",
+  "refuse",
+  "annule",
+] as const;
+export type LeaveStatus = (typeof LEAVE_STATUSES)[number];
+
+export type LeaveDoc = {
+  _id?: string;
+  employeeId: string;
+  employeeName: string;
+  type: LeaveType;
+  status: LeaveStatus;
+  startDate: string;
+  endDate: string;
+  days: number;
+  reason?: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export const HR_DOC_CATEGORIES = [
+  "contrat",
+  "identite",
+  "diplome",
+  "medical",
+  "paie",
+  "autre",
+] as const;
+export type HrDocCategory = (typeof HR_DOC_CATEGORIES)[number];
+
+export type HrDocumentDoc = {
+  _id?: string;
+  employeeId: string;
+  employeeName: string;
+  category: HrDocCategory;
+  title: string;
+  fileName: string;
+  mimeType?: string;
+  /** URL externe ou data URL (petits fichiers) */
+  fileUrl: string;
+  notes?: string;
+  uploadedAt: Date;
+  createdAt: Date;
 };

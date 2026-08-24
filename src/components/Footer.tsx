@@ -44,7 +44,7 @@ export function Footer() {
           <Link href="/#btp" className="hover:text-febis-amber">
             BTP
           </Link>
-          <Link href="/#boutique" className="hover:text-febis-amber">
+          <Link href="/boutique" className="hover:text-febis-amber">
             Boutique
           </Link>
           <Link href="/admin" className="hover:text-febis-amber">

@@ -723,18 +723,261 @@ body {
   background: #f59e0b;
 }
 
-/* ——— Admin ——— */
+/* ——— Admin command center ——— */
+.admin-shell {
+  --admin-ink: #14100e;
+  --admin-panel: rgba(255, 252, 248, 0.88);
+  --admin-line: rgba(26, 18, 16, 0.08);
+  --admin-gold: linear-gradient(
+    105deg,
+    #9a6b1f 0%,
+    #d4a84b 40%,
+    #f0d78c 52%,
+    #d4a84b 72%,
+    #9a6b1f 100%
+  );
+}
+
+.admin-shell.site-atmosphere::before {
+  background:
+    radial-gradient(
+      ellipse 70% 50% at 18% 8%,
+      rgba(215, 25, 32, 0.12),
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 55% 40% at 92% 18%,
+      rgba(212, 168, 75, 0.1),
+      transparent 50%
+    ),
+    linear-gradient(165deg, #faf6f1 0%, #f3ebe3 48%, #efe6dc 100%);
+}
+
 .admin-panel {
-  border-radius: 1.15rem;
-  border: 1px solid rgba(26, 18, 16, 0.08);
-  background: rgba(255, 255, 255, 0.78);
-  backdrop-filter: blur(12px);
+  position: relative;
+  border-radius: 1.25rem;
+  border: 1px solid var(--admin-line);
+  background: var(--admin-panel);
+  backdrop-filter: blur(16px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 18px 40px rgba(26, 18, 16, 0.04);
+}
+
+.admin-panel-premium {
+  overflow: hidden;
+}
+
+.admin-panel-premium::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: var(--admin-gold);
+  opacity: 0.85;
 }
 
 .admin-aside {
   position: sticky;
   top: 0;
   height: 100vh;
+  background:
+    linear-gradient(175deg, #1c1412 0%, #120e0c 55%, #0e0b0a 100%);
+  color: #f7f1ea;
+  border-right: 1px solid rgba(240, 215, 140, 0.12);
+  box-shadow: 8px 0 40px rgba(10, 6, 4, 0.18);
+}
+
+.admin-aside-glow {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      ellipse 90% 40% at 20% -10%,
+      rgba(215, 25, 32, 0.28),
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 70% 35% at 110% 90%,
+      rgba(212, 168, 75, 0.12),
+      transparent 50%
+    );
+}
+
+.admin-nav-link {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  border-radius: 0.9rem;
+  padding: 0.55rem 0.7rem;
+  color: rgba(247, 241, 234, 0.72);
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.admin-nav-link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.admin-nav-link.is-active {
+  background: linear-gradient(
+    110deg,
+    rgba(215, 25, 32, 0.95),
+    rgba(160, 16, 24, 0.92)
+  );
+  color: #fff;
+  box-shadow: 0 12px 28px rgba(160, 16, 24, 0.35);
+}
+
+.admin-nav-mark {
+  display: flex;
+  height: 1.85rem;
+  width: 1.85rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.55rem;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f0d78c;
+}
+
+.admin-nav-link.is-active .admin-nav-mark {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+.admin-topbar {
+  border-bottom: 1px solid var(--admin-line);
+  background: rgba(255, 252, 248, 0.72);
+  backdrop-filter: blur(18px) saturate(1.2);
+}
+
+.admin-kpi {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.admin-kpi:hover {
+  transform: translateY(-3px);
+  border-color: rgba(215, 25, 32, 0.22);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.8) inset,
+    0 22px 48px rgba(160, 16, 24, 0.1);
+}
+
+.admin-kpi-meter {
+  position: absolute;
+  right: -8%;
+  bottom: -18%;
+  width: 46%;
+  height: 70%;
+  border-radius: 999px;
+  background: radial-gradient(
+    circle at 30% 30%,
+    rgba(215, 25, 32, 0.14),
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.admin-command {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(240, 215, 140, 0.28);
+  background:
+    linear-gradient(125deg, #1a1210 0%, #2a1514 42%, #1a1210 100%);
+  color: #fff;
+  box-shadow: 0 28px 60px rgba(26, 18, 16, 0.22);
+}
+
+.admin-command::after {
+  content: "";
+  position: absolute;
+  inset: auto -10% -40% 40%;
+  height: 90%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(212, 168, 75, 0.22),
+    transparent 65%
+  );
+  pointer-events: none;
+}
+
+.admin-command-gold {
+  background: var(--admin-gold);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.admin-module-card {
+  transition:
+    transform 0.22s ease,
+    border-color 0.22s ease,
+    box-shadow 0.22s ease;
+}
+
+.admin-module-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(215, 25, 32, 0.28);
+  box-shadow: 0 20px 44px rgba(160, 16, 24, 0.1);
+}
+
+.admin-status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
+}
+
+.admin-status-dot.is-warn {
+  background: #d97706;
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.18);
+}
+
+.admin-status-dot.is-ok {
+  background: #059669;
+}
+
+@keyframes admin-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.admin-rise {
+  animation: admin-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.admin-rise-delay-1 {
+  animation-delay: 0.06s;
+}
+.admin-rise-delay-2 {
+  animation-delay: 0.12s;
+}
+.admin-rise-delay-3 {
+  animation-delay: 0.18s;
+}
+.admin-rise-delay-4 {
+  animation-delay: 0.24s;
 }
 
 @media (prefers-reduced-motion: reduce) {

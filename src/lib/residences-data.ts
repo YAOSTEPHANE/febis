@@ -9,6 +9,7 @@ import {
   type PublicLodging,
 } from "@/lib/residences";
 import type { LodgingDoc, ReservationDoc } from "@/lib/types";
+import { linkProjectAndInvoice, touchClient } from "@/lib/crm";
 
 type LodgingRecord = LodgingDoc & { _id: { toString(): string } };
 
@@ -191,41 +192,34 @@ export async function createReservationDemande(input: {
 
   const result = await db.collection("reservations").insertOne(doc);
 
-  const clients = db.collection<{
-    email: string;
-    name: string;
-    phone: string;
-    createdAt: Date;
-    updatedAt: Date;
-    interactions: Array<{
-      type: string;
-      activity: string;
-      message: string;
-      at: Date;
-    }>;
-  }>("clients");
-
-  await clients.updateOne(
-    { email: doc.guestEmail },
-    {
-      $set: {
-        name: doc.guestName,
-        email: doc.guestEmail,
-        phone: doc.guestPhone,
-        updatedAt: now,
-      },
-      $setOnInsert: { createdAt: now },
-      $push: {
-        interactions: {
-          type: "reservation_demande",
-          activity: "residences",
-          message: `${doc.lodgingTitle} · ${doc.checkIn} → ${doc.checkOut}`,
-          at: now,
-        },
-      },
+  const { clientId } = await touchClient({
+    name: doc.guestName,
+    email: doc.guestEmail,
+    phone: doc.guestPhone,
+    activity: "residences",
+    interaction: {
+      type: "reservation_demande",
+      title: "Demande de réservation",
+      message: `${doc.lodgingTitle} · ${doc.checkIn} → ${doc.checkOut}`,
+      refType: "reservation",
+      refId: result.insertedId.toString(),
     },
-    { upsert: true },
-  );
+  });
+
+  if (clientId) {
+    await linkProjectAndInvoice({
+      clientId,
+      clientName: doc.guestName,
+      clientEmail: doc.guestEmail,
+      activity: "residences",
+      title: `Résidence · ${doc.lodgingTitle}`,
+      amount: doc.totalAmount,
+      sourceType: "reservation",
+      sourceId: result.insertedId.toString(),
+      invoiceStatus: "brouillon",
+      projectStatus: "ouvert",
+    });
+  }
 
   return {
     ...doc,
