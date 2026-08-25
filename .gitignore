@@ -47,3 +47,6 @@ next-env.d.ts
 # uploads locaux (fichiers utilisateurs)
 /public/uploads/**
 !/public/uploads/.gitkeep
+
+# assets promo / CapCut (hors déploiement)
+/media/
