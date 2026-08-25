@@ -235,7 +235,7 @@ export function ReservationDetailClient() {
               className="field-premium mt-1.5"
             >
               <option value="">—</option>
-              {PAYMENT_CHANNELS.map((c) => (
+              {PAYMENT_CHANNELS.filter((c) => c !== "mobile_money").map((c) => (
                 <option key={c} value={c}>
                   {paymentChannelLabel(c)}
                 </option>

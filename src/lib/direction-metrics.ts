@@ -12,7 +12,9 @@ import type {
   ReservationDoc,
 } from "@/lib/types";
 import { ACTIVITIES } from "@/lib/types";
+import type { DirectionMetrics } from "@/lib/direction-metrics-shared";
 
+export type { DirectionMetrics } from "@/lib/direction-metrics-shared";
 export { formatXof };
 
 async function tryDb(): Promise<Db | null> {
@@ -22,24 +24,6 @@ async function tryDb(): Promise<Db | null> {
     return null;
   }
 }
-
-export type DirectionMetrics = {
-  ca: number;
-  caLabel: string;
-  occupancyRate: number;
-  occupancyLabel: string;
-  stockRate: number;
-  stockLabel: string;
-  lowStockCount: number;
-  projectsOpen: number;
-  projectsLabel: string;
-  unpaid: number;
-  unpaidCount: number;
-  activeReservations: number;
-  btpOpen: number;
-  caByActivity: Array<{ activity: string; label: string; amount: number }>;
-  generatedAt: string;
-};
 
 const ACTIVITY_LABELS: Record<string, string> = {
   residences: "Résidences",

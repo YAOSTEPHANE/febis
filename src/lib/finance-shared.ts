@@ -26,6 +26,12 @@ export {
 
 export function paymentChannelLabel(channel: string) {
   switch (channel) {
+    case "wave":
+      return "Wave CI";
+    case "orange_money":
+      return "Orange Money";
+    case "mtn_money":
+      return "MTN Money";
     case "mobile_money":
       return "Mobile Money";
     case "virement":

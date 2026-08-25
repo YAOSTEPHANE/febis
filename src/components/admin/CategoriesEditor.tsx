@@ -7,6 +7,7 @@ import {
   AdminSaveButton,
   useAdminSave,
 } from "@/components/admin/AdminForms";
+import { ImageUploadField } from "@/components/admin/ImageUploadField";
 
 export function CategoriesEditor({ initial }: { initial: CategoryContent[] }) {
   const { data, setData, saving, message, error, save } = useAdminSave(
@@ -42,18 +43,20 @@ export function CategoriesEditor({ initial }: { initial: CategoryContent[] }) {
               />
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
-              <label className="text-sm font-semibold text-febis-ink/80">
-                Image (chemin)
-                <input
-                  className="field-premium mt-2"
-                  value={cat.image}
-                  onChange={(e) => {
-                    const next = [...data];
-                    next[index] = { ...cat, image: e.target.value };
-                    setData(next);
-                  }}
-                />
-              </label>
+              <ImageUploadField
+                label="Image"
+                folder="categories"
+                value={cat.image}
+                onChange={(url) => {
+                  const next = [...data];
+                  next[index] = {
+                    ...cat,
+                    image: url || "/images/pole-residences.jpg",
+                  };
+                  setData(next);
+                }}
+                fallbackPreview="/images/pole-residences.jpg"
+              />
               <label className="text-sm font-semibold text-febis-ink/80">
                 Prix dès (XOF)
                 <input

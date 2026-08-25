@@ -5,6 +5,7 @@ import {
   enqueueNotification,
   getNotificationProviderStatus,
   listNotifications,
+  runAutomaticNotificationScans,
   scanDueInvoicesAndNotify,
   scanLowStockAndNotify,
 } from "@/lib/notifications";
@@ -20,9 +21,19 @@ export async function GET() {
   if (!session || !can(session, "notifications")) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
+
+  // Scans auto stocks + échéances (anti-doublon côté lib)
+  void runAutomaticNotificationScans().catch(() => undefined);
+
   return NextResponse.json({
     notifications: await listNotifications(80),
     providers: getNotificationProviderStatus(),
+    autoTriggers: {
+      reservation: true,
+      paiement: true,
+      echeance: true,
+      stock_faible: true,
+    },
   });
 }
 

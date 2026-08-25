@@ -23,6 +23,7 @@ import {
   type SerializedPayment,
   type SerializedUnpaid,
 } from "@/lib/finance-shared";
+import { notifyInvoiceIssued, notifyPaymentReceived } from "@/lib/notifications";
 
 export {
   activityLabel,
@@ -427,7 +428,36 @@ export async function recordPayment(input: {
     .collection<PaymentDoc>("payments")
     .insertOne(doc as PaymentDoc & { _id?: ObjectId });
 
-  return serializePayment({ ...doc, _id: result.insertedId } as unknown as PaymentDoc & { _id: ObjectId });
+  const payment = serializePayment({
+    ...doc,
+    _id: result.insertedId,
+  } as unknown as PaymentDoc & { _id: ObjectId });
+
+  if ((doc.direction ?? "entrant") === "entrant" && amount > 0) {
+    let clientEmail: string | undefined;
+    let clientPhone: string | undefined;
+    if (clientId && ObjectId.isValid(clientId)) {
+      const client = await db.collection("clients").findOne(
+        { _id: new ObjectId(clientId) },
+        { projection: { email: 1, phone: 1 } },
+      );
+      if (typeof client?.email === "string") clientEmail = client.email;
+      if (typeof client?.phone === "string") clientPhone = client.phone;
+    }
+    void notifyPaymentReceived({
+      id: payment.id,
+      title: doc.title,
+      amount,
+      channel: doc.channel,
+      clientName,
+      clientEmail,
+      clientPhone,
+      invoiceNumber,
+      activity: String(activity),
+    }).catch(() => undefined);
+  }
+
+  return payment;
 }
 
 export async function listUnpaidInvoices(): Promise<SerializedUnpaid[]> {
@@ -448,9 +478,26 @@ export async function listUnpaidInvoices(): Promise<SerializedUnpaid[]> {
 export async function issueInvoice(invoiceId: string): Promise<boolean> {
   const db = await tryDb();
   if (!db || !ObjectId.isValid(invoiceId)) return false;
+  const invoice = await db.collection("invoices").findOne({
+    _id: new ObjectId(invoiceId),
+    status: "brouillon",
+  });
+  if (!invoice) return false;
+
   const result = await db.collection("invoices").updateOne(
     { _id: new ObjectId(invoiceId), status: "brouillon" },
     { $set: { status: "emise", updatedAt: new Date() } },
   );
-  return result.modifiedCount > 0;
+  if (result.modifiedCount === 0) return false;
+
+  void notifyInvoiceIssued({
+    id: invoiceId,
+    number: String(invoice.number ?? invoiceId),
+    clientName: String(invoice.clientName ?? "Client"),
+    clientEmail:
+      typeof invoice.clientEmail === "string" ? invoice.clientEmail : undefined,
+    amount: Number(invoice.amount ?? 0),
+  }).catch(() => undefined);
+
+  return true;
 }

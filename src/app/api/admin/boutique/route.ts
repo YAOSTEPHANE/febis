@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import {
   createProduct,
   getBoutiqueSalesStats,
+  importDemoProducts,
   listAdminOrders,
   listAdminProducts,
 } from "@/lib/boutique-data";
@@ -42,6 +43,7 @@ export async function POST(request: NextRequest) {
   }
 
   let body: {
+    action?: string;
     name?: string;
     slug?: string;
     category?: string;
@@ -55,6 +57,21 @@ export async function POST(request: NextRequest) {
     body = (await request.json()) as typeof body;
   } catch {
     return NextResponse.json({ error: "JSON invalide" }, { status: 400 });
+  }
+
+  if (body.action === "import_demo") {
+    try {
+      const result = await importDemoProducts();
+      return NextResponse.json({ result });
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error ? error.message : "Import impossible",
+        },
+        { status: 400 },
+      );
+    }
   }
 
   const category = body.category ?? "";

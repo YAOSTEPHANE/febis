@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AdminPageHeader } from "@/components/admin/AdminForms";
 
 type Hit = {
@@ -13,21 +14,35 @@ type Hit = {
   activity?: string;
 };
 
+const TYPE_LABELS: Record<string, string> = {
+  client: "Client",
+  contact: "Contact",
+  reservation: "Réservation",
+  invoice: "Facture",
+  project: "Projet BTP",
+  equipment: "Matériel",
+  lodging: "Logement",
+  payment: "Paiement",
+  blog: "Article",
+  employee: "Collaborateur",
+};
+
 export function SearchAdminClient() {
-  const [q, setQ] = useState("");
+  const searchParams = useSearchParams();
+  const initialQ = searchParams.get("q") ?? "";
+  const [q, setQ] = useState(initialQ);
   const [hits, setHits] = useState<Hit[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
-  async function onSearch(event: FormEvent) {
-    event.preventDefault();
+  async function search(query: string) {
     setLoading(true);
     setError("");
     setSearched(true);
     try {
       const res = await fetch(
-        `/api/admin/search?q=${encodeURIComponent(q.trim())}`,
+        `/api/admin/search?q=${encodeURIComponent(query.trim())}`,
       );
       const json = (await res.json()) as { hits?: Hit[]; error?: string };
       if (!res.ok) throw new Error(json.error ?? "Erreur");
@@ -38,6 +53,20 @@ export function SearchAdminClient() {
     } finally {
       setLoading(false);
     }
+  }
+
+  useEffect(() => {
+    const fromUrl = searchParams.get("q") ?? "";
+    setQ(fromUrl);
+    if (fromUrl.trim().length >= 2) {
+      void search(fromUrl);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run when URL q changes
+  }, [searchParams]);
+
+  async function onSearch(event: FormEvent) {
+    event.preventDefault();
+    await search(q);
   }
 
   return (
@@ -58,6 +87,7 @@ export function SearchAdminClient() {
             onChange={(e) => setQ(e.target.value)}
             className="field-premium mt-1.5"
             placeholder="Nom, email, n° facture…"
+            autoFocus
           />
         </label>
         <button type="submit" disabled={loading} className="cta-premium">
@@ -80,10 +110,11 @@ export function SearchAdminClient() {
           <Link
             key={`${hit.type}-${hit.id}`}
             href={hit.href}
-            className="block px-5 py-4 transition hover:bg-febis-cream/40"
+            className="block px-5 py-4 transition hover:bg-white"
           >
             <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-febis-orange">
-              {hit.type}
+              {TYPE_LABELS[hit.type] ?? hit.type}
+              {hit.activity ? ` · ${hit.activity}` : ""}
             </p>
             <p className="font-display text-lg font-bold text-febis-ink">
               {hit.title}

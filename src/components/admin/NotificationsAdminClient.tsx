@@ -20,6 +20,7 @@ export function NotificationsAdminClient() {
   } | null>(null);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [scanInfo, setScanInfo] = useState("");
 
   const load = useCallback(async () => {
     setError("");
@@ -46,6 +47,7 @@ export function NotificationsAdminClient() {
     event.preventDefault();
     setSaving(true);
     setError("");
+    setScanInfo("");
     const data = new FormData(event.currentTarget);
     try {
       const res = await fetch("/api/admin/notifications", {
@@ -70,17 +72,27 @@ export function NotificationsAdminClient() {
     }
   }
 
-  async function scanStock() {
+  async function runScan(action: "scan_stock" | "scan_echeances") {
     setSaving(true);
     setError("");
+    setScanInfo("");
     try {
       const res = await fetch("/api/admin/notifications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "scan_stock" }),
+        body: JSON.stringify({ action }),
       });
-      const json = (await res.json()) as { error?: string };
+      const json = (await res.json()) as {
+        error?: string;
+        result?: unknown[];
+      };
       if (!res.ok) throw new Error(json.error ?? "Échec");
+      const count = Array.isArray(json.result) ? json.result.length : 0;
+      setScanInfo(
+        count > 0
+          ? `${count} notification(s) créée(s).`
+          : "Aucune alerte à envoyer (ou déjà notifiée récemment).",
+      );
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur");
@@ -93,7 +105,7 @@ export function NotificationsAdminClient() {
     <>
       <AdminPageHeader
         title="Notifications"
-        description="Email, WhatsApp, SMS — file d’envoi (mode simulation par défaut jusqu’au branchement fournisseurs)."
+        description="Envois automatiques Email / WhatsApp / SMS sur réservations, paiements, échéances et stocks faibles."
       />
 
       {error ? (
@@ -101,6 +113,41 @@ export function NotificationsAdminClient() {
           {error}
         </p>
       ) : null}
+      {scanInfo ? (
+        <p className="mb-4 rounded-xl border border-febis-ink/10 bg-febis-cream/40 px-4 py-3 text-sm text-febis-ink/70">
+          {scanInfo}
+        </p>
+      ) : null}
+
+      <div className="admin-panel mb-5 space-y-2 p-5">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-febis-gold-deep">
+          Déclencheurs automatiques
+        </p>
+        <ul className="grid gap-2 text-sm text-febis-ink/70 sm:grid-cols-2">
+          <li>
+            <strong className="text-febis-ink">Réservations</strong> — création
+            et changement d’étape (client + ops)
+          </li>
+          <li>
+            <strong className="text-febis-ink">Paiements</strong> — encaissement
+            confirmé (client + ops)
+          </li>
+          <li>
+            <strong className="text-febis-ink">Échéances</strong> — facture
+            émise + rappel auto &gt; 7 j
+          </li>
+          <li>
+            <strong className="text-febis-ink">Stocks faibles</strong> — boutique
+            / événementiel + scan périodique
+          </li>
+        </ul>
+        <p className="text-xs text-febis-ink/45">
+          Destinataires ops :{" "}
+          <code className="text-[11px]">NOTIFY_OPS_EMAIL</code> /{" "}
+          <code className="text-[11px]">NOTIFY_OPS_PHONE</code> (sinon compte
+          admin). Mode simulation par défaut jusqu’aux clés fournisseurs.
+        </p>
+      </div>
 
       {providers ? (
         <div className="mb-5 flex flex-wrap gap-2 text-xs font-bold uppercase tracking-wide">
@@ -172,9 +219,25 @@ export function NotificationsAdminClient() {
                 </option>
               ))}
             </select>
-            <input name="to" required placeholder="Destinataire" className="field-premium" />
-            <input name="subject" required placeholder="Sujet" className="field-premium" />
-            <textarea name="body" required rows={4} placeholder="Message" className="field-premium" />
+            <input
+              name="to"
+              required
+              placeholder="Destinataire"
+              className="field-premium"
+            />
+            <input
+              name="subject"
+              required
+              placeholder="Sujet"
+              className="field-premium"
+            />
+            <textarea
+              name="body"
+              required
+              rows={4}
+              placeholder="Message"
+              className="field-premium"
+            />
             <button
               type="submit"
               disabled={saving}
@@ -185,11 +248,19 @@ export function NotificationsAdminClient() {
           </form>
           <button
             type="button"
-            onClick={() => void scanStock()}
+            onClick={() => void runScan("scan_stock")}
             disabled={saving}
-            className="w-full rounded-full border border-febis-ink/15 px-4 py-3 text-sm font-bold"
+            className="w-full rounded-full border border-febis-ink/15 px-4 py-3 text-sm font-bold disabled:opacity-60"
           >
-            Scanner stock faible & notifier
+            Scanner stock faible
+          </button>
+          <button
+            type="button"
+            onClick={() => void runScan("scan_echeances")}
+            disabled={saving}
+            className="w-full rounded-full border border-febis-ink/15 px-4 py-3 text-sm font-bold disabled:opacity-60"
+          >
+            Scanner échéances / impayés
           </button>
         </div>
       </div>

@@ -35,10 +35,17 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="admin-panel p-5">
-      <h3 className="font-display text-base font-bold text-febis-ink">{title}</h3>
-      <p className="mt-0.5 text-xs text-febis-ink/45">{description}</p>
-      <div className="mt-4 h-64 w-full">{children}</div>
+    <div className="admin-panel admin-panel-premium admin-chart-card p-5">
+      <div className="relative z-10">
+        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-febis-gold-deep">
+          Analytics
+        </p>
+        <h3 className="mt-1 font-display text-base font-bold text-febis-ink">
+          {title}
+        </h3>
+        <p className="mt-0.5 text-xs text-febis-ink/45">{description}</p>
+        <div className="mt-4 h-64 w-full">{children}</div>
+      </div>
     </div>
   );
 }
@@ -60,14 +67,13 @@ export function DashboardCharts({ data }: { data: DashboardChartData }) {
 
   return (
     <section className="space-y-4">
-      <div>
-        <h2 className="font-display text-lg font-bold text-febis-ink">
-          Graphiques
-        </h2>
-        <p className="text-sm text-febis-ink/45">
-          CA, canaux de paiement, tendance mensuelle et taux opérationnels
-        </p>
+      <div className="admin-section-label">
+        <h2>Graphiques</h2>
+        <p>Performance</p>
       </div>
+      <p className="-mt-2 mb-1 text-sm text-febis-ink/45">
+        CA, canaux de paiement, tendance mensuelle et taux opérationnels
+      </p>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ChartCard
@@ -270,8 +276,8 @@ function GaugeCard({
   ];
 
   return (
-    <div className="admin-panel flex items-center gap-4 p-5">
-      <div className="h-28 w-28 shrink-0">
+    <div className="admin-panel admin-panel-premium admin-gauge-ring flex items-center gap-4 p-5">
+      <div className="relative z-10 h-28 w-28 shrink-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -291,13 +297,14 @@ function GaugeCard({
           </PieChart>
         </ResponsiveContainer>
       </div>
-      <div>
+      <div className="relative z-10">
         <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-febis-gold-deep">
           {title}
         </p>
-        <p className="mt-1 font-display text-3xl font-extrabold text-febis-ink">
+        <p className="mt-1 font-display text-3xl font-extrabold tracking-tight text-febis-ink">
           {clamped} %
         </p>
+        <p className="mt-1 text-xs text-febis-ink/45">Taux live</p>
       </div>
     </div>
   );

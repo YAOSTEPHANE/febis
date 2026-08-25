@@ -34,6 +34,7 @@ export type SerializedShopOrder = {
   clientPhone: string;
   deliveryAddress: string;
   message: string;
+  paymentChannel: string | null;
   lines: ShopOrderLine[];
   totalAmount: number;
   currency: "XOF";

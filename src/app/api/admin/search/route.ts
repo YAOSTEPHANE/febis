@@ -11,6 +11,12 @@ export async function GET(request: NextRequest) {
 
   const q = request.nextUrl.searchParams.get("q") ?? "";
   const activity = request.nextUrl.searchParams.get("activity") ?? undefined;
-  const hits = await adminMultiSearch({ q, activity });
+  const limitRaw = request.nextUrl.searchParams.get("limit");
+  const limit = limitRaw ? Number(limitRaw) : undefined;
+  const hits = await adminMultiSearch({
+    q,
+    activity,
+    limit: Number.isFinite(limit) ? limit : undefined,
+  });
   return NextResponse.json({ hits });
 }

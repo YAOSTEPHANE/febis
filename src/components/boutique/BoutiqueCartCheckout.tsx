@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useBoutiqueCart } from "@/components/boutique/BoutiqueCartProvider";
 import {
   cartLineTotal,
@@ -11,7 +11,16 @@ import {
   variantLabel,
   type SerializedShopOrder,
 } from "@/lib/boutique-shared";
+import { paymentChannelLabel } from "@/lib/finance-shared";
 import { cn } from "@/lib/cn";
+
+type PaymentMethodOption = {
+  id: string;
+  label: string;
+  merchantName?: string;
+  merchantPhone?: string;
+  instructions?: string;
+};
 
 export function BoutiqueCartCheckout() {
   const { items, total, setQuantity, removeItem, clear, ready } =
@@ -20,6 +29,36 @@ export function BoutiqueCartCheckout() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [order, setOrder] = useState<SerializedShopOrder | null>(null);
+  const [mobileMethods, setMobileMethods] = useState<PaymentMethodOption[]>([]);
+  const [otherChannels, setOtherChannels] = useState<PaymentMethodOption[]>([]);
+  const [paymentChannel, setPaymentChannel] = useState("");
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/payment-methods");
+        const json = (await res.json()) as {
+          methods?: PaymentMethodOption[];
+          otherChannels?: PaymentMethodOption[];
+        };
+        if (!res.ok) return;
+        const methods = json.methods ?? [];
+        setMobileMethods(methods);
+        setOtherChannels(json.otherChannels ?? []);
+        if (methods[0]) setPaymentChannel(methods[0].id);
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, []);
+
+  const selectedMethod = useMemo(() => {
+    return (
+      mobileMethods.find((m) => m.id === paymentChannel) ??
+      otherChannels.find((m) => m.id === paymentChannel) ??
+      null
+    );
+  }, [mobileMethods, otherChannels, paymentChannel]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -37,6 +76,7 @@ export function BoutiqueCartCheckout() {
           clientPhone: data.get("clientPhone"),
           deliveryAddress: data.get("deliveryAddress"),
           message: data.get("message"),
+          paymentChannel: paymentChannel || undefined,
           items: items.map((item) => ({
             slug: item.slug,
             sku: item.sku,
@@ -66,6 +106,12 @@ export function BoutiqueCartCheckout() {
   }
 
   if (step === "confirme" && order) {
+    const channelLabel = order.paymentChannel
+      ? paymentChannelLabel(order.paymentChannel)
+      : null;
+    const mobileHint =
+      mobileMethods.find((m) => m.id === order.paymentChannel) ?? null;
+
     return (
       <div className="rounded-2xl border border-febis-ink/10 bg-white/85 p-8">
         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-febis-orange">
@@ -79,6 +125,22 @@ export function BoutiqueCartCheckout() {
           {orderStatusLabel(order.status)}). Total{" "}
           <strong>{formatXof(order.totalAmount)}</strong>.
         </p>
+        {channelLabel ? (
+          <p className="mt-2 text-sm font-semibold text-febis-ink">
+            Paiement prévu : {channelLabel}
+          </p>
+        ) : null}
+        {mobileHint ? (
+          <div className="mt-4 rounded-xl border border-febis-orange/25 bg-febis-orange/8 px-4 py-3 text-sm text-febis-ink/80">
+            <p className="font-bold">
+              {mobileHint.label}
+              {mobileHint.merchantPhone ? ` · ${mobileHint.merchantPhone}` : ""}
+            </p>
+            {mobileHint.instructions ? (
+              <p className="mt-2 leading-relaxed">{mobileHint.instructions}</p>
+            ) : null}
+          </div>
+        ) : null}
         <ul className="mt-6 space-y-2 text-sm text-febis-ink/70">
           {order.lines.map((line) => (
             <li key={`${line.sku}-${line.productSlug}`}>
@@ -235,6 +297,35 @@ export function BoutiqueCartCheckout() {
                 className="mt-1.5 w-full rounded-xl border border-febis-ink/12 bg-white px-3 py-2.5 text-sm outline-none ring-febis-red/30 focus:ring-2"
               />
             </label>
+            <label className="block text-sm font-semibold text-febis-ink/80">
+              Moyen de paiement
+              <select
+                value={paymentChannel}
+                onChange={(e) => setPaymentChannel(e.target.value)}
+                className="mt-1.5 w-full rounded-xl border border-febis-ink/12 bg-white px-3 py-2.5 text-sm outline-none ring-febis-red/30 focus:ring-2"
+              >
+                {mobileMethods.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+                {otherChannels.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {selectedMethod && "merchantPhone" in selectedMethod && selectedMethod.merchantPhone ? (
+              <div className="rounded-xl border border-febis-orange/20 bg-febis-orange/8 px-3 py-2.5 text-xs text-febis-ink/75">
+                <p className="font-bold text-febis-ink">
+                  {selectedMethod.label} · {selectedMethod.merchantPhone}
+                </p>
+                {selectedMethod.instructions ? (
+                  <p className="mt-1 leading-relaxed">{selectedMethod.instructions}</p>
+                ) : null}
+              </div>
+            ) : null}
             <label className="block text-sm font-semibold text-febis-ink/80">
               Message (optionnel)
               <textarea

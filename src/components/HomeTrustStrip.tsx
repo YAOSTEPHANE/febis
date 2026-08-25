@@ -10,11 +10,11 @@ export function HomeTrustStrip({ stats }: { stats: TrustStat[] }) {
       <div className="mx-auto grid max-w-7xl grid-cols-2 gap-px bg-white/10 md:grid-cols-4">
         {stats.map((stat, index) => (
           <Reveal key={`${stat.label}-${index}`} delay={index * 0.05}>
-            <div className="bg-febis-ink px-5 py-6 text-center md:py-8">
-              <p className="font-display text-3xl font-extrabold tracking-tight text-gold-sheen md:text-4xl">
+            <div className="bg-febis-ink px-4 py-5 text-center sm:px-5 sm:py-6 md:py-8">
+              <p className="font-display text-2xl font-extrabold tracking-tight text-gold-sheen sm:text-3xl md:text-4xl">
                 {stat.value}
               </p>
-              <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.18em] text-white/55">
+              <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.16em] text-white/55 sm:text-[11px] sm:tracking-[0.18em]">
                 {stat.label}
               </p>
             </div>

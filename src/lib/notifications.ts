@@ -217,15 +217,260 @@ export async function listNotifications(limit = 50): Promise<SerializedNotificat
     .map(serialize);
 }
 
+async function getOpsRecipients(): Promise<{ email?: string; phone?: string }> {
+  const email =
+    process.env.NOTIFY_OPS_EMAIL?.trim() ||
+    process.env.ADMIN_NOTIFY_EMAIL?.trim() ||
+    undefined;
+  const phone =
+    process.env.NOTIFY_OPS_PHONE?.trim() ||
+    process.env.ADMIN_NOTIFY_PHONE?.trim() ||
+    undefined;
+
+  if (email) return { email, phone };
+
+  const db = await tryDb();
+  if (!db) return { phone };
+  const admin = await db.collection("users").findOne(
+    { active: true, role: { $in: ["admin", "direction"] } },
+    { projection: { email: 1, phone: 1 } },
+  );
+  return {
+    email: typeof admin?.email === "string" ? admin.email : undefined,
+    phone:
+      phone ||
+      (typeof admin?.phone === "string" ? admin.phone : undefined),
+  };
+}
+
+async function wasRecentlyNotified(
+  event: NotificationEvent,
+  fingerprint: string,
+  withinMs = 12 * 60 * 60 * 1000,
+): Promise<boolean> {
+  const db = await tryDb();
+  if (!db) return false;
+  const since = new Date(Date.now() - withinMs);
+  const existing = await db.collection("notifications").findOne({
+    event,
+    "meta.fingerprint": fingerprint,
+    createdAt: { $gte: since },
+  });
+  return Boolean(existing);
+}
+
+/** Destinataires ops + client (email/téléphone). */
+export async function notifyEvent(input: {
+  event: NotificationEvent;
+  subject: string;
+  body: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  fingerprint?: string;
+  meta?: NotificationDoc["meta"];
+  /** Si true, n’envoie qu’aux ops (pas au client). */
+  opsOnly?: boolean;
+}) {
+  if (input.fingerprint) {
+    const dup = await wasRecentlyNotified(input.event, input.fingerprint);
+    if (dup) return [];
+  }
+
+  const ops = await getOpsRecipients();
+  const results: SerializedNotification[] = [];
+  const meta = {
+    ...input.meta,
+    ...(input.fingerprint ? { fingerprint: input.fingerprint } : {}),
+  };
+
+  const opsResults = await notifyAllChannels({
+    event: input.event,
+    toEmail: ops.email,
+    toPhone: ops.phone,
+    subject: input.subject,
+    body: input.body,
+    meta: { ...meta, audience: "ops" },
+  });
+  results.push(...opsResults);
+
+  if (!input.opsOnly) {
+    const clientResults = await notifyAllChannels({
+      event: input.event,
+      toEmail: input.clientEmail,
+      toPhone: input.clientPhone,
+      subject: input.subject,
+      body: input.body,
+      meta: { ...meta, audience: "client" },
+    });
+    results.push(...clientResults);
+  }
+
+  return results;
+}
+
+export async function notifyReservationCreated(input: {
+  id: string;
+  lodgingTitle: string;
+  guestName: string;
+  guestEmail: string;
+  guestPhone: string;
+  checkIn: string;
+  checkOut: string;
+  nights: number;
+  totalAmount: number;
+}) {
+  const amount = input.totalAmount.toLocaleString("fr-FR");
+  return notifyEvent({
+    event: "reservation",
+    fingerprint: `reservation-create-${input.id}`,
+    clientEmail: input.guestEmail,
+    clientPhone: input.guestPhone,
+    subject: `FEBiS — Demande de réservation · ${input.lodgingTitle}`,
+    body: [
+      `Nouvelle demande de réservation.`,
+      `Client : ${input.guestName}`,
+      `Logement : ${input.lodgingTitle}`,
+      `Séjour : ${input.checkIn} → ${input.checkOut} (${input.nights} nuit(s))`,
+      `Montant : ${amount} XOF`,
+      `Réf. : ${input.id}`,
+    ].join("\n"),
+    meta: { reservationId: input.id },
+  });
+}
+
+export async function notifyReservationUpdated(input: {
+  id: string;
+  lodgingTitle: string;
+  guestName: string;
+  guestEmail: string;
+  guestPhone: string;
+  checkIn: string;
+  checkOut: string;
+  step: string;
+  cancelled?: boolean;
+}) {
+  const label = input.cancelled
+    ? "annulée"
+    : `étape « ${input.step} »`;
+  return notifyEvent({
+    event: "reservation",
+    fingerprint: `reservation-${input.id}-${input.cancelled ? "cancel" : input.step}`,
+    clientEmail: input.guestEmail,
+    clientPhone: input.guestPhone,
+    subject: `FEBiS — Réservation ${label} · ${input.lodgingTitle}`,
+    body: [
+      `Mise à jour réservation (${label}).`,
+      `Client : ${input.guestName}`,
+      `Logement : ${input.lodgingTitle}`,
+      `Séjour : ${input.checkIn} → ${input.checkOut}`,
+      `Réf. : ${input.id}`,
+    ].join("\n"),
+    meta: { reservationId: input.id, step: input.step },
+  });
+}
+
+export async function notifyPaymentReceived(input: {
+  id: string;
+  title: string;
+  amount: number;
+  channel: string;
+  clientName?: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  invoiceNumber?: string;
+  activity: string;
+}) {
+  const amount = input.amount.toLocaleString("fr-FR");
+  return notifyEvent({
+    event: "paiement",
+    fingerprint: `paiement-${input.id}`,
+    clientEmail: input.clientEmail,
+    clientPhone: input.clientPhone,
+    subject: `FEBiS — Paiement confirmé · ${amount} XOF`,
+    body: [
+      `Paiement entrant confirmé.`,
+      `Titre : ${input.title}`,
+      `Montant : ${amount} XOF`,
+      `Canal : ${input.channel}`,
+      `Activité : ${input.activity}`,
+      input.clientName ? `Client : ${input.clientName}` : null,
+      input.invoiceNumber ? `Facture : ${input.invoiceNumber}` : null,
+      `Réf. : ${input.id}`,
+    ]
+      .filter(Boolean)
+      .join("\n"),
+    meta: { paymentId: input.id },
+  });
+}
+
+export async function notifyInvoiceIssued(input: {
+  id: string;
+  number: string;
+  clientName: string;
+  clientEmail?: string;
+  amount: number;
+}) {
+  const amount = input.amount.toLocaleString("fr-FR");
+  return notifyEvent({
+    event: "echeance",
+    fingerprint: `invoice-issue-${input.id}`,
+    clientEmail: input.clientEmail,
+    subject: `FEBiS — Facture émise · ${input.number}`,
+    body: [
+      `Facture émise.`,
+      `Client : ${input.clientName}`,
+      `Numéro : ${input.number}`,
+      `Montant : ${amount} XOF`,
+      `Merci de procéder au règlement à l’échéance.`,
+    ].join("\n"),
+    meta: { invoiceId: input.id },
+  });
+}
+
+export async function notifyStockLowItem(input: {
+  source: "equipment" | "product";
+  name: string;
+  available: number;
+  total?: number;
+  ref: string;
+}) {
+  const detail =
+    input.total !== undefined
+      ? `${input.available}/${input.total}`
+      : String(input.available);
+  return notifyEvent({
+    event: "stock_faible",
+    fingerprint: `stock-${input.source}-${input.ref}-${input.available}`,
+    opsOnly: true,
+    subject: `FEBiS — Stock faible · ${input.name}`,
+    body: [
+      `Alerte stock faible.`,
+      `Article : ${input.name}`,
+      `Source : ${input.source === "equipment" ? "Événementiel" : "Boutique"}`,
+      `Niveau : ${detail}`,
+    ].join("\n"),
+    meta: {
+      source: input.source,
+      ref: input.ref,
+      available: input.available,
+    },
+  });
+}
+
 /** Alerte stocks faibles → notifications direction */
-export async function scanLowStockAndNotify(toEmail: string, toPhone?: string) {
+export async function scanLowStockAndNotify(toEmail?: string, toPhone?: string) {
   const db = await tryDb();
   if (!db) return [];
+
+  const ops = await getOpsRecipients();
+  const email = toEmail?.trim() || ops.email;
+  const phone = toPhone?.trim() || ops.phone;
 
   const [equipment, products] = await Promise.all([
     db
       .collection<{
         name: string;
+        slug?: string;
         quantityAvailable: number;
         quantityTotal: number;
       }>("equipment")
@@ -234,6 +479,7 @@ export async function scanLowStockAndNotify(toEmail: string, toPhone?: string) {
     db
       .collection<{
         name: string;
+        slug?: string;
         variants?: Array<{ stock?: number }>;
       }>("products")
       .find({})
@@ -247,6 +493,7 @@ export async function scanLowStockAndNotify(toEmail: string, toPhone?: string) {
   const lowProducts = products
     .map((p) => ({
       name: p.name,
+      slug: p.slug ?? p.name,
       stock: (p.variants ?? []).reduce(
         (sum, v) => sum + Number(v.stock ?? 0),
         0,
@@ -255,6 +502,11 @@ export async function scanLowStockAndNotify(toEmail: string, toPhone?: string) {
     .filter((p) => p.stock <= 2);
 
   if (lowEquip.length === 0 && lowProducts.length === 0) return [];
+
+  const fingerprint = `scan-stock-${new Date().toISOString().slice(0, 10)}`;
+  if (await wasRecentlyNotified("stock_faible", fingerprint, 6 * 60 * 60 * 1000)) {
+    return [];
+  }
 
   const body = [
     ...lowEquip.map(
@@ -267,23 +519,29 @@ export async function scanLowStockAndNotify(toEmail: string, toPhone?: string) {
 
   return notifyAllChannels({
     event: "stock_faible",
-    toEmail,
-    toPhone,
+    toEmail: email,
+    toPhone: phone,
     subject: `FEBiS — ${lowEquip.length + lowProducts.length} stock(s) faible(s)`,
     body: `Alertes stock :\n${body}`,
     meta: {
       count: lowEquip.length + lowProducts.length,
+      fingerprint,
+      audience: "ops",
     },
   });
 }
 
 /** Factures émises depuis > 7 jours → échéances */
 export async function scanDueInvoicesAndNotify(
-  toEmail: string,
+  toEmail?: string,
   toPhone?: string,
 ) {
   const db = await tryDb();
   if (!db) return [];
+
+  const ops = await getOpsRecipients();
+  const email = toEmail?.trim() || ops.email;
+  const phone = toPhone?.trim() || ops.phone;
 
   const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const overdue = await db
@@ -295,6 +553,11 @@ export async function scanDueInvoicesAndNotify(
 
   if (overdue.length === 0) return [];
 
+  const fingerprint = `scan-echeance-${new Date().toISOString().slice(0, 10)}`;
+  if (await wasRecentlyNotified("echeance", fingerprint, 12 * 60 * 60 * 1000)) {
+    return [];
+  }
+
   const body = overdue
     .map((inv) => {
       const amount = Number(inv.amount ?? 0);
@@ -302,12 +565,47 @@ export async function scanDueInvoicesAndNotify(
     })
     .join("\n");
 
-  return notifyAllChannels({
+  const results = await notifyAllChannels({
     event: "echeance",
-    toEmail,
-    toPhone,
+    toEmail: email,
+    toPhone: phone,
     subject: `FEBiS — ${overdue.length} échéance(s) / impayé(s)`,
     body: `Factures émises non réglées (> 7 j) :\n${body}`,
-    meta: { count: overdue.length },
+    meta: { count: overdue.length, fingerprint, audience: "ops" },
   });
+
+  // Notifie aussi chaque client concerné (email facture)
+  for (const inv of overdue.slice(0, 20)) {
+    const clientEmail =
+      typeof inv.clientEmail === "string" ? inv.clientEmail : undefined;
+    if (!clientEmail) continue;
+    const amount = Number(inv.amount ?? 0).toLocaleString("fr-FR");
+    const fp = `echeance-client-${String(inv._id)}`;
+    if (await wasRecentlyNotified("echeance", fp, 3 * 24 * 60 * 60 * 1000)) {
+      continue;
+    }
+    const clientNotifs = await notifyAllChannels({
+      event: "echeance",
+      toEmail: clientEmail,
+      subject: `FEBiS — Rappel d’échéance · ${String(inv.number)}`,
+      body: [
+        `Bonjour ${String(inv.clientName ?? "")},`,
+        `Votre facture ${String(inv.number)} de ${amount} XOF est en attente de règlement.`,
+        `Merci de procéder au paiement ou de nous contacter.`,
+      ].join("\n"),
+      meta: { fingerprint: fp, audience: "client", invoiceId: String(inv._id) },
+    });
+    results.push(...clientNotifs);
+  }
+
+  return results;
+}
+
+/** Scans périodiques (stock + échéances) — anti-doublon intégré. */
+export async function runAutomaticNotificationScans() {
+  const [stock, due] = await Promise.all([
+    scanLowStockAndNotify(),
+    scanDueInvoicesAndNotify(),
+  ]);
+  return { stock, due };
 }

@@ -44,7 +44,7 @@ export type SerializedReservation = {
   updatedAt: string;
 };
 
-export function statusLabel(status: DayStatusLike): string {
+export function statusLabel(status: LodgingStatus | "reserve" | string): string {
   switch (status) {
     case "disponible":
       return "Disponible";
@@ -56,8 +56,6 @@ export function statusLabel(status: DayStatusLike): string {
       return status;
   }
 }
-
-type DayStatusLike = LodgingStatus | "reserve";
 
 export function stepLabel(step: ReservationStep | string): string {
   switch (step) {
@@ -95,6 +93,12 @@ export function categoryLabel(category: LodgingCategory | string): string {
 
 export function paymentChannelLabel(channel: string | null | undefined): string {
   switch (channel) {
+    case "wave":
+      return "Wave CI";
+    case "orange_money":
+      return "Orange Money";
+    case "mtn_money":
+      return "MTN Money";
     case "mobile_money":
       return "Mobile Money";
     case "virement":
@@ -112,4 +116,18 @@ export function isReservationStep(value: string): value is ReservationStep {
 
 export function isLodgingStatus(value: string): value is LodgingStatus {
   return (LODGING_STATUSES as readonly string[]).includes(value);
+}
+
+export function isLodgingCategory(value: string): value is LodgingCategory {
+  return (LODGING_CATEGORIES as readonly string[]).includes(value);
+}
+
+export function slugifyLodgingTitle(title: string): string {
+  return title
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80);
 }

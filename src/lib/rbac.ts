@@ -111,6 +111,7 @@ export async function updateUser(
   id: string,
   patch: Partial<{
     name: string;
+    email: string;
     role: Role;
     active: boolean;
     password: string;
@@ -121,12 +122,24 @@ export async function updateUser(
 
   const $set: Record<string, unknown> = { updatedAt: new Date() };
   if (patch.name !== undefined) $set.name = patch.name.trim();
+  if (patch.email !== undefined) {
+    const email = patch.email.trim().toLowerCase();
+    const duplicate = await db.collection("users").findOne({
+      email,
+      _id: { $ne: new ObjectId(id) },
+    });
+    if (duplicate) throw new Error("Cet email existe déjà");
+    $set.email = email;
+  }
   if (patch.role !== undefined) {
     if (!ROLES.includes(patch.role)) return null;
     $set.role = patch.role;
   }
   if (patch.active !== undefined) $set.active = patch.active;
   if (patch.password) {
+    if (patch.password.length < 8) {
+      throw new Error("Mot de passe trop court (8 caractères min.)");
+    }
     $set.passwordHash = await bcrypt.hash(patch.password, 12);
   }
 
@@ -136,6 +149,32 @@ export async function updateUser(
     .findOne({ _id: new ObjectId(id) });
   if (!updated?._id) return null;
   return serialize(updated as UserDoc & { _id: ObjectId });
+}
+
+export async function countActiveAdmins(): Promise<number> {
+  const db = await tryDb();
+  if (!db) return 0;
+  return db.collection("users").countDocuments({
+    role: "admin",
+    active: true,
+  });
+}
+
+export async function getUserById(id: string): Promise<SerializedUser | null> {
+  const db = await tryDb();
+  if (!db || !ObjectId.isValid(id)) return null;
+  const doc = await db.collection("users").findOne({ _id: new ObjectId(id) });
+  if (!doc?._id) return null;
+  return serialize(doc as UserDoc & { _id: ObjectId });
+}
+
+export async function deleteUser(id: string): Promise<boolean> {
+  const db = await tryDb();
+  if (!db || !ObjectId.isValid(id)) return false;
+  const result = await db.collection("users").deleteOne({
+    _id: new ObjectId(id),
+  });
+  return result.deletedCount === 1;
 }
 
 export function roleMatrix() {

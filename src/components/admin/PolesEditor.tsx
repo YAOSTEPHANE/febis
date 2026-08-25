@@ -7,6 +7,7 @@ import {
   AdminSaveButton,
   useAdminSave,
 } from "@/components/admin/AdminForms";
+import { ImageUploadField } from "@/components/admin/ImageUploadField";
 
 export function PolesEditor({ initial }: { initial: PoleContent[] }) {
   const { data, setData, saving, message, error, save } = useAdminSave(
@@ -65,18 +66,20 @@ export function PolesEditor({ initial }: { initial: PoleContent[] }) {
               />
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
-              <label className="text-sm font-semibold text-febis-ink/80">
-                Image
-                <input
-                  className="field-premium mt-2"
-                  value={pole.image}
-                  onChange={(e) => {
-                    const next = [...data];
-                    next[index] = { ...pole, image: e.target.value };
-                    setData(next);
-                  }}
-                />
-              </label>
+              <ImageUploadField
+                label="Image"
+                folder="poles"
+                value={pole.image}
+                onChange={(url) => {
+                  const next = [...data];
+                  next[index] = {
+                    ...pole,
+                    image: url || "/images/pole-residences.jpg",
+                  };
+                  setData(next);
+                }}
+                fallbackPreview="/images/pole-residences.jpg"
+              />
               <label className="text-sm font-semibold text-febis-ink/80">
                 Lien
                 <input

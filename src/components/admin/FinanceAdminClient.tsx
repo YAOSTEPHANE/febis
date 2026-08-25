@@ -98,7 +98,7 @@ export function FinanceAdminClient() {
           invoiceId,
           amount,
           title: `Encaissement · ${title}`,
-          channel: "mobile_money",
+          channel: "wave",
         }),
       });
       const json = (await res.json()) as { error?: string };
@@ -342,7 +342,7 @@ export function FinanceAdminClient() {
           </select>
           <select name="paymentChannel" className="field-premium" defaultValue="">
             <option value="">Canal (optionnel)</option>
-            {PAYMENT_CHANNELS.map((c) => (
+            {PAYMENT_CHANNELS.filter((c) => c !== "mobile_money").map((c) => (
               <option key={c} value={c}>
                 {paymentChannelLabel(c)}
               </option>

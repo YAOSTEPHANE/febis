@@ -56,6 +56,21 @@ export async function PATCH(request: NextRequest, context: Ctx) {
   if (typeof body.guests === "number" || typeof body.guests === "string") {
     patch.guests = Number(body.guests);
   }
+  if (typeof body.guestName === "string") {
+    patch.guestName = body.guestName;
+  }
+  if (typeof body.guestEmail === "string") {
+    patch.guestEmail = body.guestEmail;
+  }
+  if (typeof body.guestPhone === "string") {
+    patch.guestPhone = body.guestPhone;
+  }
+  if (typeof body.checkIn === "string") {
+    patch.checkIn = body.checkIn;
+  }
+  if (typeof body.checkOut === "string") {
+    patch.checkOut = body.checkOut;
+  }
   if (body.paymentChannel === null || body.paymentChannel === "") {
     patch.paymentChannel = null;
   } else if (typeof body.paymentChannel === "string") {

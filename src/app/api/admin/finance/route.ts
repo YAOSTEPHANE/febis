@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (body.action === "pay" && typeof body.invoiceId === "string") {
-    const channel = String(body.channel ?? "mobile_money");
+    const channel = String(body.channel ?? "wave");
     if (!(PAYMENT_CHANNELS as readonly string[]).includes(channel)) {
       return NextResponse.json({ error: "Canal invalide" }, { status: 400 });
     }

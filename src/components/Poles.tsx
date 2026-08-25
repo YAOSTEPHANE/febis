@@ -6,34 +6,34 @@ import type { PoleContent } from "@/lib/homepage-content";
 export function Poles({ poles }: { poles: PoleContent[] }) {
   return (
     <section id="poles" className="relative pt-8 pb-12 md:pt-10 md:pb-16">
-      <div className="mx-auto max-w-7xl px-5 md:px-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-5 lg:px-8">
         <Reveal>
           <p className="mb-2 text-sm font-bold uppercase tracking-[0.22em] text-febis-red">
             Activités FEBiS
           </p>
-          <h2 className="font-display max-w-3xl text-3xl font-extrabold tracking-tight text-febis-ink md:text-4xl">
+          <h2 className="font-display max-w-3xl text-[1.7rem] font-extrabold tracking-tight text-febis-ink sm:text-3xl md:text-4xl">
             Une vitrine claire pour{" "}
             <span className="text-gold-sheen">chaque pôle</span>.
           </h2>
-          <p className="mt-3 max-w-2xl text-base text-febis-ink/65">
+          <p className="mt-3 max-w-2xl text-sm text-febis-ink/65 sm:text-base">
             Conformément au cahier des charges NYI-CDC-FEBIS-2026-001 : présentation
             des quatre activités et prise de contact centralisée.
           </p>
         </Reveal>
 
-        <div className="mt-6 grid gap-5 md:mt-8 md:grid-cols-2">
+        <div className="mt-6 grid gap-5 md:mt-8 lg:grid-cols-2">
           {poles.map((pole, index) => (
             <Reveal key={pole.id} delay={index * 0.08}>
               <article
                 id={pole.id}
                 className="service-tile group grid h-full overflow-hidden p-0 md:grid-cols-[1.05fr_0.95fr]"
               >
-                <div className="relative min-h-[220px] md:min-h-full">
+                <div className="relative min-h-[200px] sm:min-h-[220px] md:min-h-full">
                   <Image
                     src={pole.image}
                     alt={pole.title}
                     fill
-                    sizes="(max-width: 768px) 100vw, 50vw"
+                    sizes="(max-width: 1024px) 100vw, 50vw"
                     className="object-cover transition-transform duration-700 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-febis-ink/55 to-transparent md:bg-gradient-to-r" />
@@ -41,8 +41,8 @@ export function Poles({ poles }: { poles: PoleContent[] }) {
                     {pole.tag}
                   </span>
                 </div>
-                <div className="relative z-10 flex flex-col justify-center p-6 md:p-7">
-                  <h3 className="font-display text-2xl font-bold tracking-tight text-febis-ink">
+                <div className="relative z-10 flex flex-col justify-center p-5 sm:p-6 md:p-7">
+                  <h3 className="font-display text-xl font-bold tracking-tight text-febis-ink sm:text-2xl">
                     <span className="draw-underline">{pole.title}</span>
                   </h3>
                   <p className="mt-3 text-[0.98rem] leading-relaxed text-febis-ink/65">
@@ -55,7 +55,7 @@ export function Poles({ poles }: { poles: PoleContent[] }) {
                         className="flex items-center gap-2 text-sm font-semibold text-febis-ink/80"
                       >
                         <span
-                          className="h-1.5 w-1.5 rounded-full bg-gradient-to-br from-febis-gold-light to-febis-red"
+                          className="h-1.5 w-1.5 shrink-0 rounded-full bg-gradient-to-br from-febis-gold-light to-febis-red"
                           aria-hidden
                         />
                         {point}

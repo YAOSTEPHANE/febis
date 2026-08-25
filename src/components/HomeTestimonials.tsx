@@ -36,12 +36,12 @@ export function HomeTestimonials({ items }: { items: Testimonial[] }) {
       <div className="absolute -left-24 top-10 h-72 w-72 rounded-full bg-febis-red/8 blur-3xl" />
       <div className="absolute -right-16 bottom-0 h-64 w-64 rounded-full bg-febis-amber/15 blur-3xl" />
 
-      <div className="relative mx-auto max-w-7xl px-5 md:px-8">
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-5 lg:px-8">
         <Reveal>
           <p className="mb-2 text-sm font-bold uppercase tracking-[0.22em] text-febis-red">
             Témoignages
           </p>
-          <h2 className="font-display max-w-2xl text-3xl font-extrabold tracking-tight text-febis-ink md:text-4xl">
+          <h2 className="font-display max-w-2xl text-[1.7rem] font-extrabold tracking-tight text-febis-ink sm:text-3xl md:text-4xl">
             Ils font confiance à{" "}
             <span className="text-gold-sheen">FEBiS</span>
           </h2>
@@ -52,18 +52,18 @@ export function HomeTestimonials({ items }: { items: Testimonial[] }) {
 
         <div className="mt-6 grid gap-6 md:mt-8 lg:grid-cols-[1.1fr_0.9fr]">
           <Reveal>
-            <blockquote className="relative overflow-hidden rounded-[1.75rem] border border-febis-ink/8 bg-febis-ink px-8 py-10 text-white md:px-12 md:py-14">
+            <blockquote className="relative overflow-hidden rounded-[1.5rem] border border-febis-ink/8 bg-febis-ink px-5 py-8 text-white sm:rounded-[1.75rem] sm:px-8 sm:py-10 md:px-12 md:py-14">
               <span
-                className="absolute -top-4 left-6 font-display text-[7rem] leading-none text-white/10"
+                className="absolute -top-4 left-4 font-display text-[5rem] leading-none text-white/10 sm:left-6 sm:text-[7rem]"
                 aria-hidden
               >
                 “
               </span>
               <Stars rating={current.rating} />
-              <p className="relative mt-6 font-display text-2xl font-medium leading-snug md:text-3xl">
+              <p className="relative mt-5 font-display text-xl font-medium leading-snug sm:mt-6 sm:text-2xl md:text-3xl">
                 {current.quote}
               </p>
-              <footer className="relative mt-8 flex flex-wrap items-end justify-between gap-4 border-t border-white/15 pt-6">
+              <footer className="relative mt-6 flex flex-wrap items-end justify-between gap-4 border-t border-white/15 pt-5 sm:mt-8 sm:pt-6">
                 <div>
                   <p className="font-bold text-white">{current.name}</p>
                   <p className="text-sm text-white/60">{current.role}</p>

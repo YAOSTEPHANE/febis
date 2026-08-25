@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState, useTransition } from "react";
 import { AdminPageHeader } from "@/components/admin/AdminForms";
+import { AdminFormOverlay } from "@/components/admin/AdminFormOverlay";
 import {
   departmentLabel,
   employeeStatusLabel,
@@ -13,6 +14,41 @@ import {
 } from "@/lib/rh-shared";
 import { cn } from "@/lib/cn";
 
+type FormState = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  department: string;
+  jobTitle: string;
+  status: string;
+  hireDate: string;
+};
+
+const emptyForm = (): FormState => ({
+  firstName: "",
+  lastName: "",
+  email: "",
+  phone: "",
+  department: "operations",
+  jobTitle: "",
+  status: "actif",
+  hireDate: new Date().toISOString().slice(0, 10),
+});
+
+function employeeToForm(emp: SerializedEmployee): FormState {
+  return {
+    firstName: emp.firstName,
+    lastName: emp.lastName,
+    email: emp.email,
+    phone: emp.phone ?? "",
+    department: emp.department,
+    jobTitle: emp.jobTitle,
+    status: emp.status,
+    hireDate: emp.hireDate?.slice(0, 10) ?? "",
+  };
+}
+
 export function RhAdminClient() {
   const [employees, setEmployees] = useState<SerializedEmployee[]>([]);
   const [overview, setOverview] = useState<RhOverview | null>(null);
@@ -21,7 +57,10 @@ export function RhAdminClient() {
   const [department, setDepartment] = useState("all");
   const [status, setStatus] = useState("all");
   const [error, setError] = useState("");
-  const [creating, setCreating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<FormState>(emptyForm);
   const [pending, startTransition] = useTransition();
 
   const load = useCallback(async () => {
@@ -57,34 +96,58 @@ export function RhAdminClient() {
     return () => clearTimeout(timer);
   }, [load]);
 
-  async function onCreate(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setCreating(true);
+  function openCreate() {
+    setEditingId(null);
+    setForm(emptyForm());
     setError("");
-    const data = new FormData(event.currentTarget);
+    setFormOpen(true);
+  }
+
+  function openEdit(emp: SerializedEmployee) {
+    setEditingId(emp.id);
+    setForm(employeeToForm(emp));
+    setError("");
+    setFormOpen(true);
+  }
+
+  function closeForm() {
+    setFormOpen(false);
+    setEditingId(null);
+    setForm(emptyForm());
+  }
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    const payload = {
+      firstName: form.firstName,
+      lastName: form.lastName,
+      email: form.email,
+      phone: form.phone,
+      department: form.department,
+      jobTitle: form.jobTitle,
+      status: form.status,
+      hireDate: form.hireDate,
+      ...(editingId ? { action: "profile" } : {}),
+    };
     try {
-      const res = await fetch("/api/admin/rh", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          firstName: data.get("firstName"),
-          lastName: data.get("lastName"),
-          email: data.get("email"),
-          phone: data.get("phone"),
-          department: data.get("department"),
-          jobTitle: data.get("jobTitle"),
-          status: data.get("status") || "actif",
-          hireDate: data.get("hireDate"),
-        }),
-      });
+      const res = await fetch(
+        editingId ? `/api/admin/rh/${editingId}` : "/api/admin/rh",
+        {
+          method: editingId ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
       const json = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(json.error ?? "Création impossible");
-      event.currentTarget.reset();
+      if (!res.ok) throw new Error(json.error ?? "Enregistrement impossible");
+      closeForm();
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur");
     } finally {
-      setCreating(false);
+      setSaving(false);
     }
   }
 
@@ -93,6 +156,11 @@ export function RhAdminClient() {
       <AdminPageHeader
         title="Module RH"
         description="Dossiers employés numériques, contrats de travail, présences, congés et documents administratifs."
+        actions={
+          <button type="button" onClick={openCreate} className="cta-premium">
+            + Nouveau dossier
+          </button>
+        }
       />
 
       <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
@@ -117,123 +185,65 @@ export function RhAdminClient() {
         ))}
       </div>
 
-      <div className="mb-6 grid gap-4 lg:grid-cols-[1.35fr_1fr]">
-        <div className="admin-panel admin-panel-premium p-5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-febis-gold-deep">
-            Recherche & filtres
-          </p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
-            <label className="block text-sm font-semibold text-febis-ink/80 sm:col-span-3">
-              Rechercher
-              <input
-                className="field-premium mt-2"
-                placeholder="Nom, email, matricule, poste…"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-              />
-            </label>
-            <label className="block text-sm font-semibold text-febis-ink/80">
-              Département
-              <select
-                className="field-premium mt-2"
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-              >
-                <option value="all">Tous</option>
-                {EMPLOYEE_DEPARTMENTS.map((d) => (
-                  <option key={d} value={d}>
-                    {departmentLabel(d)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block text-sm font-semibold text-febis-ink/80">
-              Statut
-              <select
-                className="field-premium mt-2"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <option value="all">Tous</option>
-                {EMPLOYEE_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {employeeStatusLabel(s)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="flex items-end">
-              <p className="pb-3 text-sm text-febis-ink/45">
-                {pending || loading
-                  ? "Actualisation…"
-                  : `${employees.length} dossier${employees.length > 1 ? "s" : ""}`}
-              </p>
-            </div>
+      <div className="admin-panel admin-panel-premium mb-4 p-5">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-febis-gold-deep">
+          Recherche & filtres
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <label className="block text-sm font-semibold text-febis-ink/80 sm:col-span-3">
+            Rechercher
+            <input
+              className="field-premium mt-2"
+              placeholder="Nom, email, matricule, poste…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </label>
+          <label className="block text-sm font-semibold text-febis-ink/80">
+            Département
+            <select
+              className="field-premium mt-2"
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+            >
+              <option value="all">Tous</option>
+              {EMPLOYEE_DEPARTMENTS.map((d) => (
+                <option key={d} value={d}>
+                  {departmentLabel(d)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-sm font-semibold text-febis-ink/80">
+            Statut
+            <select
+              className="field-premium mt-2"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              <option value="all">Tous</option>
+              {EMPLOYEE_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {employeeStatusLabel(s)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="flex items-end">
+            <p className="pb-3 text-sm text-febis-ink/45">
+              {pending || loading
+                ? "Actualisation…"
+                : `${employees.length} dossier${employees.length > 1 ? "s" : ""}`}
+            </p>
           </div>
         </div>
-
-        <form onSubmit={onCreate} className="admin-panel space-y-3 p-5">
-          <p className="font-display text-lg font-bold text-febis-ink">
-            Nouveau dossier employé
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <input
-              required
-              name="firstName"
-              className="field-premium"
-              placeholder="Prénom *"
-            />
-            <input
-              required
-              name="lastName"
-              className="field-premium"
-              placeholder="Nom *"
-            />
-          </div>
-          <input
-            required
-            name="email"
-            type="email"
-            className="field-premium"
-            placeholder="Email *"
-          />
-          <input name="phone" className="field-premium" placeholder="Téléphone" />
-          <input
-            required
-            name="jobTitle"
-            className="field-premium"
-            placeholder="Poste *"
-          />
-          <select name="department" className="field-premium" required defaultValue="operations">
-            {EMPLOYEE_DEPARTMENTS.map((d) => (
-              <option key={d} value={d}>
-                {departmentLabel(d)}
-              </option>
-            ))}
-          </select>
-          <input required name="hireDate" type="date" className="field-premium" />
-          <select name="status" className="field-premium" defaultValue="actif">
-            {EMPLOYEE_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {employeeStatusLabel(s)}
-              </option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            disabled={creating}
-            className="cta-premium w-full justify-center disabled:opacity-60"
-          >
-            {creating ? "Création…" : "Créer le dossier"}
-          </button>
-        </form>
       </div>
 
-      {error && (
+      {error && !formOpen ? (
         <p className="mb-4 rounded-xl border border-febis-red/20 bg-febis-red/8 px-3 py-2 text-sm font-semibold text-febis-red">
           {error}
         </p>
-      )}
+      ) : null}
 
       <div className="admin-panel overflow-hidden">
         <table className="w-full text-left text-sm">
@@ -244,7 +254,7 @@ export function RhAdminClient() {
               <th className="px-4 py-3">Poste</th>
               <th className="px-4 py-3">Département</th>
               <th className="px-4 py-3">Statut</th>
-              <th className="px-4 py-3" />
+              <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-febis-ink/8">
@@ -256,8 +266,15 @@ export function RhAdminClient() {
               </tr>
             ) : employees.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-febis-ink/50">
-                  Aucun dossier. Créez le premier collaborateur ci-dessus.
+                <td colSpan={6} className="px-4 py-8 text-center text-febis-ink/50">
+                  Aucun dossier.{" "}
+                  <button
+                    type="button"
+                    onClick={openCreate}
+                    className="font-bold text-febis-gold-deep underline"
+                  >
+                    Créer le premier collaborateur
+                  </button>
                 </td>
               </tr>
             ) : (
@@ -289,13 +306,22 @@ export function RhAdminClient() {
                       {employeeStatusLabel(emp.status)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/admin/dashboard/rh/${emp.id}`}
-                      className="text-sm font-bold text-febis-red hover:underline"
-                    >
-                      Dossier →
-                    </Link>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(emp)}
+                        className="rounded-full border border-febis-ink/15 px-3 py-1.5 text-xs font-bold"
+                      >
+                        Modifier
+                      </button>
+                      <Link
+                        href={`/admin/dashboard/rh/${emp.id}`}
+                        className="rounded-full border border-febis-red/20 px-3 py-1.5 text-xs font-bold text-febis-red"
+                      >
+                        Dossier
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -303,6 +329,127 @@ export function RhAdminClient() {
           </tbody>
         </table>
       </div>
+
+      <AdminFormOverlay
+        open={formOpen}
+        title={editingId ? "Modifier le dossier" : "Nouveau dossier employé"}
+        subtitle="Identité et affectation — contrats / congés sur la fiche complète"
+        onClose={closeForm}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={closeForm}
+              className="rounded-full border border-febis-ink/15 px-4 py-2.5 text-sm font-bold"
+            >
+              Fermer
+            </button>
+            {editingId ? (
+              <Link
+                href={`/admin/dashboard/rh/${editingId}`}
+                className="rounded-full border border-febis-red/20 px-4 py-2.5 text-sm font-bold text-febis-red"
+              >
+                Ouvrir le dossier
+              </Link>
+            ) : null}
+            <button
+              type="submit"
+              form="rh-form"
+              disabled={saving}
+              className="cta-premium ml-auto disabled:opacity-60"
+            >
+              {saving
+                ? "Enregistrement…"
+                : editingId
+                  ? "Enregistrer"
+                  : "Créer le dossier"}
+            </button>
+          </>
+        }
+      >
+        {error && formOpen ? (
+          <p className="mb-4 rounded-xl border border-febis-red/20 bg-febis-red/5 px-3 py-2 text-sm font-semibold text-febis-red">
+            {error}
+          </p>
+        ) : null}
+        <form id="rh-form" onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-2">
+          <input
+            required
+            value={form.firstName}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, firstName: e.target.value }))
+            }
+            className="field-premium"
+            placeholder="Prénom *"
+          />
+          <input
+            required
+            value={form.lastName}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, lastName: e.target.value }))
+            }
+            className="field-premium"
+            placeholder="Nom *"
+          />
+          <input
+            required
+            type="email"
+            value={form.email}
+            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+            className="field-premium sm:col-span-2"
+            placeholder="Email *"
+          />
+          <input
+            value={form.phone}
+            onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+            className="field-premium"
+            placeholder="Téléphone"
+          />
+          <input
+            required
+            value={form.jobTitle}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, jobTitle: e.target.value }))
+            }
+            className="field-premium"
+            placeholder="Poste *"
+          />
+          <select
+            required
+            value={form.department}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, department: e.target.value }))
+            }
+            className="field-premium"
+          >
+            {EMPLOYEE_DEPARTMENTS.map((d) => (
+              <option key={d} value={d}>
+                {departmentLabel(d)}
+              </option>
+            ))}
+          </select>
+          <select
+            value={form.status}
+            onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
+            className="field-premium"
+          >
+            {EMPLOYEE_STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {employeeStatusLabel(s)}
+              </option>
+            ))}
+          </select>
+          <input
+            required
+            type="date"
+            value={form.hireDate}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, hireDate: e.target.value }))
+            }
+            className="field-premium sm:col-span-2"
+          />
+        </form>
+      </AdminFormOverlay>
     </>
   );
 }

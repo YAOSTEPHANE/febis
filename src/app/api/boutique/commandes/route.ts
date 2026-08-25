@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createShopOrder } from "@/lib/boutique-data";
+import { PAYMENT_CHANNELS, type PaymentChannel } from "@/lib/types";
 
 type Body = {
   clientName?: unknown;
@@ -7,6 +8,7 @@ type Body = {
   clientPhone?: unknown;
   deliveryAddress?: unknown;
   message?: unknown;
+  paymentChannel?: unknown;
   items?: unknown;
 };
 
@@ -27,6 +29,12 @@ export async function POST(request: NextRequest) {
   const clientPhone = str(body.clientPhone);
   const deliveryAddress = str(body.deliveryAddress);
   const message = str(body.message);
+  const paymentRaw = str(body.paymentChannel);
+  const paymentChannel = PAYMENT_CHANNELS.includes(
+    paymentRaw as PaymentChannel,
+  )
+    ? (paymentRaw as PaymentChannel)
+    : null;
 
   if (clientName.length < 2) {
     return NextResponse.json({ error: "Nom invalide." }, { status: 400 });
@@ -73,6 +81,7 @@ export async function POST(request: NextRequest) {
       clientPhone,
       deliveryAddress,
       message: message || undefined,
+      paymentChannel,
       items,
     });
     return NextResponse.json({ ok: true, order }, { status: 201 });

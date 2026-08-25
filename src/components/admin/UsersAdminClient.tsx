@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { AdminPageHeader } from "@/components/admin/AdminForms";
+import { cn } from "@/lib/cn";
 import { ROLES, type Role } from "@/lib/types";
 
 type UserRow = {
@@ -26,11 +27,25 @@ const ROLE_LABELS: Record<Role, string> = {
   operationnels: "Opérationnels",
 };
 
+const emptyEdit = {
+  name: "",
+  email: "",
+  role: "operationnels" as Role,
+  active: true,
+  password: "",
+};
+
 export function UsersAdminClient() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [matrix, setMatrix] = useState<MatrixRow[]>([]);
+  const [selfId, setSelfId] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [edit, setEdit] = useState(emptyEdit);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const selected = users.find((u) => u.id === selectedId) ?? null;
 
   const load = useCallback(async () => {
     setError("");
@@ -39,11 +54,13 @@ export function UsersAdminClient() {
       const json = (await res.json()) as {
         users?: UserRow[];
         matrix?: MatrixRow[];
+        selfId?: string;
         error?: string;
       };
       if (!res.ok) throw new Error(json.error ?? "Erreur");
       setUsers(json.users ?? []);
       setMatrix(json.matrix ?? []);
+      setSelfId(json.selfId ?? "");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur");
     }
@@ -53,10 +70,25 @@ export function UsersAdminClient() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (!selected) {
+      setEdit(emptyEdit);
+      return;
+    }
+    setEdit({
+      name: selected.name,
+      email: selected.email,
+      role: selected.role,
+      active: selected.active,
+      password: "",
+    });
+  }, [selected]);
+
   async function onCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
     setError("");
+    setMessage("");
     const data = new FormData(event.currentTarget);
     try {
       const res = await fetch("/api/admin/users", {
@@ -69,9 +101,45 @@ export function UsersAdminClient() {
           password: data.get("password"),
         }),
       });
-      const json = (await res.json()) as { error?: string };
+      const json = (await res.json()) as { error?: string; user?: UserRow };
       if (!res.ok) throw new Error(json.error ?? "Échec");
       event.currentTarget.reset();
+      setMessage("Compte créé.");
+      await load();
+      if (json.user) setSelectedId(json.user.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function onSave(event: FormEvent) {
+    event.preventDefault();
+    if (!selectedId) return;
+    setSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      const body: Record<string, unknown> = {
+        id: selectedId,
+        name: edit.name,
+        email: edit.email,
+        role: edit.role,
+        active: edit.active,
+      };
+      if (edit.password.trim().length > 0) {
+        body.password = edit.password.trim();
+      }
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Échec");
+      setEdit((prev) => ({ ...prev, password: "" }));
+      setMessage("Profil mis à jour.");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur");
@@ -80,26 +148,37 @@ export function UsersAdminClient() {
     }
   }
 
-  async function toggleActive(user: UserRow) {
+  async function onDelete() {
+    if (!selected || selected.id === selfId) return;
+    const ok = window.confirm(
+      `Supprimer définitivement le compte « ${selected.name} » (${ROLE_LABELS[selected.role]}) ?`,
+    );
+    if (!ok) return;
+    setSaving(true);
     setError("");
-    const res = await fetch("/api/admin/users", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: user.id, active: !user.active }),
-    });
-    const json = (await res.json()) as { error?: string };
-    if (!res.ok) {
-      setError(json.error ?? "Échec");
-      return;
+    setMessage("");
+    try {
+      const res = await fetch(
+        `/api/admin/users?id=${encodeURIComponent(selected.id)}`,
+        { method: "DELETE" },
+      );
+      const json = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Échec");
+      setSelectedId(null);
+      setMessage("Compte supprimé.");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setSaving(false);
     }
-    await load();
   }
 
   return (
     <>
       <AdminPageHeader
-        title="Utilisateurs & droits"
-        description="Quatre profils CDC : Admin, Direction, Compta, Opérationnels — matrice de permissions."
+        title="Utilisateurs & profils"
+        description="Gérez tous les comptes : Admin, Direction, Compta, Opérationnels — rôles, activation et mots de passe."
       />
 
       {error ? (
@@ -107,12 +186,20 @@ export function UsersAdminClient() {
           {error}
         </p>
       ) : null}
+      {message ? (
+        <p className="mb-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-sm font-semibold text-emerald-800">
+          {message}
+        </p>
+      ) : null}
 
-      <div className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {matrix.map((row) => (
           <div key={row.role} className="admin-panel admin-panel-premium p-4">
             <p className="font-display text-lg font-bold text-febis-ink">
               {row.label}
+            </p>
+            <p className="mt-1 text-xs text-febis-ink/45">
+              {users.filter((u) => u.role === row.role).length} compte(s)
             </p>
             <p className="mt-2 text-xs leading-relaxed text-febis-ink/55">
               {row.permissions.join(" · ")}
@@ -121,34 +208,165 @@ export function UsersAdminClient() {
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
+      <div className="grid gap-6 xl:grid-cols-[1.15fr_1fr_0.95fr]">
         <div className="admin-panel overflow-hidden">
           <div className="border-b border-febis-ink/8 px-5 py-3 text-sm font-semibold">
             Comptes ({users.length})
           </div>
           <div className="divide-y divide-febis-ink/8">
-            {users.map((u) => (
-              <div
-                key={u.id}
-                className="flex flex-wrap items-center justify-between gap-3 px-5 py-3"
-              >
-                <div>
-                  <p className="font-semibold text-febis-ink">{u.name}</p>
-                  <p className="text-xs text-febis-ink/50">
-                    {u.email} · {u.roleLabel}
-                  </p>
-                </div>
+            {users.length === 0 ? (
+              <p className="px-5 py-8 text-center text-sm text-febis-ink/45">
+                Aucun utilisateur.
+              </p>
+            ) : null}
+            {users.map((u) => {
+              const isSelf = u.id === selfId;
+              const active = selectedId === u.id;
+              return (
                 <button
+                  key={u.id}
                   type="button"
-                  onClick={() => void toggleActive(u)}
-                  className="text-xs font-bold text-febis-red hover:underline"
+                  onClick={() => setSelectedId(u.id)}
+                  className={cn(
+                    "flex w-full items-start justify-between gap-3 px-5 py-3 text-left transition",
+                    active ? "bg-febis-red/5" : "hover:bg-febis-smoke/60",
+                  )}
                 >
-                  {u.active ? "Désactiver" : "Activer"}
+                  <div className="min-w-0">
+                    <p className="font-semibold text-febis-ink">
+                      {u.name}
+                      {isSelf ? (
+                        <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-febis-orange">
+                          vous
+                        </span>
+                      ) : null}
+                    </p>
+                    <p className="truncate text-xs text-febis-ink/50">
+                      {u.email}
+                    </p>
+                    <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.12em] text-febis-ink/40">
+                      {u.roleLabel}
+                      {" · "}
+                      <span
+                        className={
+                          u.active ? "text-emerald-700" : "text-febis-red"
+                        }
+                      >
+                        {u.active ? "Actif" : "Inactif"}
+                      </span>
+                    </p>
+                  </div>
                 </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
+
+        <form
+          onSubmit={(e) => void onSave(e)}
+          className="admin-panel admin-panel-premium h-fit space-y-3 p-5"
+        >
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-febis-gold-deep">
+            Modifier le profil
+          </p>
+          {!selected ? (
+            <p className="py-6 text-center text-sm text-febis-ink/45">
+              Sélectionnez un compte pour l’éditer.
+            </p>
+          ) : (
+            <>
+              <label className="block text-sm font-semibold text-febis-ink/80">
+                Nom
+                <input
+                  required
+                  value={edit.name}
+                  onChange={(e) =>
+                    setEdit((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  className="field-premium mt-1.5"
+                />
+              </label>
+              <label className="block text-sm font-semibold text-febis-ink/80">
+                Email
+                <input
+                  required
+                  type="email"
+                  value={edit.email}
+                  onChange={(e) =>
+                    setEdit((prev) => ({ ...prev, email: e.target.value }))
+                  }
+                  className="field-premium mt-1.5"
+                />
+              </label>
+              <label className="block text-sm font-semibold text-febis-ink/80">
+                Profil
+                <select
+                  value={edit.role}
+                  onChange={(e) =>
+                    setEdit((prev) => ({
+                      ...prev,
+                      role: e.target.value as Role,
+                    }))
+                  }
+                  className="field-premium mt-1.5"
+                >
+                  {ROLES.map((r) => (
+                    <option key={r} value={r}>
+                      {ROLE_LABELS[r]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-sm font-semibold text-febis-ink/80">
+                <input
+                  type="checkbox"
+                  checked={edit.active}
+                  disabled={selected.id === selfId}
+                  onChange={(e) =>
+                    setEdit((prev) => ({ ...prev, active: e.target.checked }))
+                  }
+                  className="h-4 w-4 rounded border-febis-ink/20"
+                />
+                Compte actif
+                {selected.id === selfId ? (
+                  <span className="text-xs font-normal text-febis-ink/40">
+                    (votre compte)
+                  </span>
+                ) : null}
+              </label>
+              <label className="block text-sm font-semibold text-febis-ink/80">
+                Nouveau mot de passe
+                <input
+                  type="password"
+                  minLength={8}
+                  value={edit.password}
+                  onChange={(e) =>
+                    setEdit((prev) => ({ ...prev, password: e.target.value }))
+                  }
+                  placeholder="Laisser vide pour ne pas changer"
+                  className="field-premium mt-1.5"
+                />
+              </label>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="cta-premium flex-1 justify-center disabled:opacity-60"
+                >
+                  {saving ? "Enregistrement…" : "Enregistrer"}
+                </button>
+                <button
+                  type="button"
+                  disabled={saving || selected.id === selfId}
+                  onClick={() => void onDelete()}
+                  className="rounded-full border border-febis-red/25 px-4 py-2 text-sm font-bold text-febis-red transition hover:bg-febis-red/5 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Supprimer
+                </button>
+              </div>
+            </>
+          )}
+        </form>
 
         <form
           onSubmit={onCreate}

@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import {
   createEquipment,
   createEventQuote,
+  deleteEquipment,
   getEvenementielStats,
   listAdminEquipment,
   listEventQuotes,
@@ -226,4 +227,22 @@ export async function PATCH(request: NextRequest) {
       { status: 400 },
     );
   }
+}
+
+export async function DELETE(request: NextRequest) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+  }
+
+  const slug = request.nextUrl.searchParams.get("slug")?.trim() ?? "";
+  if (!slug) {
+    return NextResponse.json({ error: "Slug requis" }, { status: 400 });
+  }
+
+  const ok = await deleteEquipment(slug);
+  if (!ok) {
+    return NextResponse.json({ error: "Article introuvable" }, { status: 404 });
+  }
+  return NextResponse.json({ ok: true });
 }

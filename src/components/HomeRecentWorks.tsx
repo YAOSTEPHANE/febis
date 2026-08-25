@@ -48,18 +48,18 @@ export function HomeRecentWorks({
       <div className="absolute -right-28 top-24 h-80 w-80 rounded-full bg-febis-orange/10 blur-3xl" />
       <div className="absolute -left-20 bottom-0 h-72 w-72 rounded-full bg-febis-gold/12 blur-3xl" />
 
-      <div className="relative mx-auto max-w-7xl px-5 md:px-8">
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-5 lg:px-8">
         <Reveal>
           <p className="mb-2 text-sm font-bold uppercase tracking-[0.22em] text-febis-red">
             Portfolio
           </p>
-          <div className="flex flex-wrap items-end justify-between gap-6">
+          <div className="flex flex-wrap items-end justify-between gap-4 sm:gap-6">
             <div className="max-w-2xl">
-              <h2 className="font-display text-3xl font-extrabold tracking-tight text-febis-ink md:text-4xl">
+              <h2 className="font-display text-[1.7rem] font-extrabold tracking-tight text-febis-ink sm:text-3xl md:text-4xl">
                 Nos récents{" "}
                 <span className="text-gold-sheen">travaux</span>
               </h2>
-              <p className="mt-3 text-base text-febis-ink/65">{subheading}</p>
+              <p className="mt-3 text-sm text-febis-ink/65 sm:text-base">{subheading}</p>
             </div>
 
             {showFilters && (

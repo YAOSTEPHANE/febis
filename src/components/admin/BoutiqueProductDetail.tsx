@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AdminPageHeader, AdminSaveButton } from "@/components/admin/AdminForms";
+import { ImageUploadField } from "@/components/admin/ImageUploadField";
 import {
   formatXof,
   PRODUCT_CATEGORIES,
@@ -24,6 +25,7 @@ export function BoutiqueProductDetail() {
   const router = useRouter();
   const [product, setProduct] = useState<SerializedProduct | null>(null);
   const [variants, setVariants] = useState<VariantForm[]>([]);
+  const [photo, setPhoto] = useState("/images/boutique-produits.jpg");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -43,6 +45,7 @@ export function BoutiqueProductDetail() {
         if (cancelled) return;
         const p = json.product!;
         setProduct(p);
+        setPhoto(p.photo || "/images/boutique-produits.jpg");
         setVariants(
           p.variants.map((v) => ({
             sku: v.sku,
@@ -81,7 +84,7 @@ export function BoutiqueProductDetail() {
           slug: data.get("slug"),
           category: data.get("category"),
           description: data.get("description"),
-          photo: data.get("photo"),
+          photo,
           featured: data.get("featured") === "on",
           variants: variants.map((v) => ({
             sku: v.sku,
@@ -194,12 +197,15 @@ export function BoutiqueProductDetail() {
               ))}
             </select>
           </label>
-          <label className="block text-sm font-semibold">
-            Photo
-            <input
-              name="photo"
-              defaultValue={product.photo}
-              className="field-premium mt-1.5"
+          <label className="block text-sm font-semibold md:col-span-2">
+            <ImageUploadField
+              label="Photo"
+              folder="boutique"
+              value={photo}
+              onChange={(url) =>
+                setPhoto(url || "/images/boutique-produits.jpg")
+              }
+              fallbackPreview="/images/boutique-produits.jpg"
             />
           </label>
         </div>

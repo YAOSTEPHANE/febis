@@ -7,6 +7,7 @@ import { cn } from "@/lib/cn";
 import type { Permission } from "@/lib/rbac-shared";
 import type { DashboardChartData } from "@/lib/dashboard-charts-shared";
 import { DashboardCharts } from "@/components/admin/DashboardCharts";
+import { AdminNavIcon } from "@/components/admin/AdminNavIcon";
 
 export type DashboardPilotKpi = {
   label: string;
@@ -31,15 +32,18 @@ export type DashboardContact = {
   createdAt: string;
 };
 
-type TabId = "vue" | "contenu" | "metier";
+type TabId = "vue" | "metier";
 
 const TABS: Array<{ id: TabId; label: string; hint: string }> = [
-  { id: "vue", label: "Vue d’ensemble", hint: "KPI, alertes & graphiques" },
-  { id: "contenu", label: "Contenu à renseigner", hint: "Vitrine du site" },
-  { id: "metier", label: "Exploitation", hint: "Activités & transverse" },
+  { id: "vue", label: "Vue d’ensemble", hint: "KPI · alertes · graphiques" },
+  { id: "metier", label: "Exploitation", hint: "Activités · modules" },
 ];
 
+const KPI_MARKS = ["CA", "OC", "ST", "PR"] as const;
+
 export function AdminDashboardShell({
+  operatorName,
+  roleLabel,
   dbOk,
   generatedAt,
   pilot,
@@ -54,6 +58,8 @@ export function AdminDashboardShell({
   permissions,
   charts,
 }: {
+  operatorName: string;
+  roleLabel: string;
   dbOk: boolean;
   generatedAt: string;
   pilot: DashboardPilotKpi[];
@@ -70,92 +76,114 @@ export function AdminDashboardShell({
 }) {
   const [tab, setTab] = useState<TabId>("vue");
   const allowed = new Set(permissions);
-  const canVitrine = allowed.has("vitrine");
+  const firstName = operatorName.split(" ")[0] ?? operatorName;
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
 
-  const contenuModules = ADMIN_NAV.filter(
-    (item) =>
-      allowed.has(item.permission) &&
-      (item.group === "vitrine" ||
-        item.href === "/admin/dashboard/travaux"),
-  );
   const metierModules = ADMIN_NAV.filter(
     (item) =>
       allowed.has(item.permission) &&
+      item.menu !== false &&
       (item.group === "activites" ||
         item.group === "transverse" ||
-        item.group === "inbox") &&
-      item.href !== "/admin/dashboard/travaux",
+        item.group === "inbox"),
   );
 
-  const visibleTabs = TABS.filter((t) => {
-    if (t.id === "contenu") return canVitrine;
-    return true;
-  });
+  const hotCount = [
+    unpaidCount > 0,
+    leavesPending > 0,
+    lowStockCount > 0,
+    contactsCount > 0,
+  ].filter(Boolean).length;
 
   return (
-    <div>
-      <header className="mb-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-febis-ink/50">
-            {generatedAt
-              ? `Mis à jour ${new Date(generatedAt).toLocaleString("fr-FR", {
-                  dateStyle: "short",
-                  timeStyle: "short",
-                })}`
-              : "Vue consolidée FEBiS"}
-          </p>
-          <span
-            className={cn(
-              "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold",
-              dbOk
-                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                : "border-amber-200 bg-amber-50 text-amber-900",
-            )}
-          >
+    <div className="admin-rise space-y-7">
+      <section className="admin-command relative px-6 py-7 md:px-8 md:py-8">
+        <div className="relative z-10 flex flex-wrap items-end justify-between gap-6">
+          <div className="max-w-2xl">
+            <h1 className="font-display text-[clamp(1.75rem,3.5vw,2.6rem)] font-extrabold leading-tight tracking-tight text-white">
+              {greeting},{" "}
+              <span className="admin-command-gold">{firstName}</span>
+            </h1>
+            <p className="mt-2 max-w-lg text-sm leading-relaxed text-white/60">
+              {roleLabel}
+              {generatedAt
+                ? ` · synchronisé ${new Date(generatedAt).toLocaleString("fr-FR", {
+                    dateStyle: "short",
+                    timeStyle: "short",
+                  })}`
+                : ""}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
             <span
-              className={cn("admin-status-dot", dbOk ? "is-ok" : "is-warn")}
-            />
-            {dbOk ? "Base connectée" : "Base hors ligne"}
-          </span>
+              className={cn(
+                "inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-semibold backdrop-blur",
+                dbOk
+                  ? "border-emerald-400/30 bg-emerald-500/15 text-emerald-100"
+                  : "border-amber-400/30 bg-amber-500/15 text-amber-100",
+              )}
+            >
+              <span
+                className={cn("admin-status-dot", dbOk ? "is-ok" : "is-warn")}
+              />
+              {dbOk ? "Base connectée" : "Base hors ligne"}
+            </span>
+            {hotCount > 0 ? (
+              <span className="inline-flex items-center gap-2 rounded-full border border-febis-red/40 bg-febis-red/25 px-3.5 py-1.5 text-xs font-bold text-white">
+                {hotCount} alerte{hotCount > 1 ? "s" : ""} active
+                {hotCount > 1 ? "s" : ""}
+              </span>
+            ) : (
+              <span className="inline-flex items-center rounded-full border border-white/15 bg-white/8 px-3.5 py-1.5 text-xs font-semibold text-white/70">
+                Opérations stables
+              </span>
+            )}
+          </div>
         </div>
 
         {!dbOk ? (
-          <div className="mt-4 rounded-xl border border-amber-500/25 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+          <div className="relative z-10 mt-5 rounded-xl border border-amber-400/30 bg-amber-500/15 px-4 py-3 text-sm font-semibold text-amber-50">
             MongoDB indisponible — vérifiez{" "}
-            <code className="rounded bg-white/80 px-1">MONGODB_URI</code>.
+            <code className="rounded bg-black/20 px-1.5 py-0.5">MONGODB_URI</code>
+            .
           </div>
         ) : null}
+      </section>
 
-        <div
-          className="mt-4 flex flex-wrap gap-1 border-b border-febis-ink/10"
-          role="tablist"
-          aria-label="Sections du tableau de bord"
-        >
-          {visibleTabs.map((t) => {
-            const active = tab === t.id;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => setTab(t.id)}
+      <div
+        className="admin-dash-tabs admin-rise admin-rise-delay-1"
+        role="tablist"
+        aria-label="Sections du tableau de bord"
+      >
+        {TABS.map((t) => {
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setTab(t.id)}
+              className={cn("admin-dash-tab", active && "is-active")}
+            >
+              <span className="block text-sm font-bold leading-tight">
+                {t.label}
+              </span>
+              <span
                 className={cn(
-                  "-mb-px border-b-2 px-4 py-2.5 text-left transition",
-                  active
-                    ? "border-febis-red text-febis-ink"
-                    : "border-transparent text-febis-ink/45 hover:text-febis-ink/75",
+                  "mt-0.5 block text-[11px] font-medium",
+                  active ? "text-white/75" : "opacity-70",
                 )}
               >
-                <span className="block text-sm font-bold">{t.label}</span>
-                <span className="block text-[11px] font-medium opacity-70">
-                  {t.hint}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </header>
+                {t.hint}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
       {tab === "vue" ? (
         <OverviewTab
@@ -168,13 +196,8 @@ export function AdminDashboardShell({
           contacts={contacts}
           permissions={permissions}
           charts={charts}
-          onGoContenu={canVitrine ? () => setTab("contenu") : undefined}
           onGoMetier={() => setTab("metier")}
         />
-      ) : null}
-
-      {tab === "contenu" && canVitrine ? (
-        <ContenuTab modules={contenuModules} />
       ) : null}
 
       {tab === "metier" ? (
@@ -198,7 +221,6 @@ function OverviewTab({
   contacts,
   permissions,
   charts,
-  onGoContenu,
   onGoMetier,
 }: {
   pilot: DashboardPilotKpi[];
@@ -210,7 +232,6 @@ function OverviewTab({
   contacts: DashboardContact[];
   permissions: Permission[];
   charts: DashboardChartData;
-  onGoContenu?: () => void;
   onGoMetier: () => void;
 }) {
   const allowed = new Set(permissions);
@@ -251,47 +272,55 @@ function OverviewTab({
 
   return (
     <div className="space-y-8" role="tabpanel">
-      <section>
-        <h2 className="mb-3 font-display text-lg font-bold text-febis-ink">
-          Indicateurs clés
-        </h2>
+      <section className="admin-rise admin-rise-delay-1">
+        <div className="admin-section-label">
+          <h2>Indicateurs clés</h2>
+          <p>Pilotage</p>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {pilot.map((kpi) => (
+          {pilot.map((kpi, index) => (
             <Link
               key={kpi.label}
               href={kpi.href}
-              className="admin-panel admin-panel-premium p-5 transition hover:border-febis-red/25"
+              className={cn(
+                "admin-panel admin-panel-premium admin-kpi p-5",
+                `admin-rise admin-rise-delay-${Math.min(index + 1, 4)}`,
+              )}
             >
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-febis-gold-deep">
-                {kpi.label}
-              </p>
-              <p className="mt-2 font-display text-2xl font-extrabold text-febis-ink">
+              <span className="admin-kpi-meter" aria-hidden />
+              <div className="relative z-10 flex items-start justify-between gap-3">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-febis-gold-deep">
+                  {kpi.label}
+                </p>
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-febis-red/10 text-[10px] font-extrabold text-febis-red">
+                  {KPI_MARKS[index] ?? "•"}
+                </span>
+              </div>
+              <p className="relative z-10 mt-3 font-display text-[1.65rem] font-extrabold leading-none tracking-tight text-febis-ink md:text-3xl">
                 {kpi.value}
               </p>
-              <p className="mt-1 text-xs text-febis-ink/45">{kpi.hint}</p>
+              <p className="relative z-10 mt-2 text-xs leading-snug text-febis-ink/45">
+                {kpi.hint}
+              </p>
             </Link>
           ))}
         </div>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <div className="admin-panel p-5">
-          <h2 className="font-display text-lg font-bold text-febis-ink">
-            À traiter
-          </h2>
+      <section className="grid gap-4 lg:grid-cols-5 admin-rise admin-rise-delay-2">
+        <div className="admin-panel admin-panel-premium p-5 lg:col-span-2">
+          <div className="admin-section-label mb-0">
+            <h2>À traiter</h2>
+            <p>Priorités</p>
+          </div>
           <ul className="mt-4 space-y-2">
             {alerts.map((row) => (
               <li key={row.label}>
                 <Link
                   href={row.href}
-                  className={cn(
-                    "flex items-center justify-between gap-3 rounded-xl border px-3.5 py-3 transition hover:border-febis-red/25",
-                    row.hot
-                      ? "border-febis-red/15 bg-febis-red/5"
-                      : "border-febis-ink/6 bg-white/60",
-                  )}
+                  className={cn("admin-alert-row", row.hot && "is-hot")}
                 >
-                  <span>
+                  <span className="min-w-0">
                     <span className="block text-sm font-bold text-febis-ink">
                       {row.label}
                     </span>
@@ -301,7 +330,7 @@ function OverviewTab({
                   </span>
                   <span
                     className={cn(
-                      "font-display text-lg font-extrabold",
+                      "shrink-0 font-display text-lg font-extrabold tabular-nums",
                       row.hot ? "text-febis-red" : "text-febis-ink",
                     )}
                   >
@@ -311,47 +340,48 @@ function OverviewTab({
               </li>
             ))}
             {alerts.length === 0 ? (
-              <li className="text-sm text-febis-ink/45">Aucune alerte.</li>
+              <li className="rounded-xl border border-dashed border-febis-ink/12 px-4 py-8 text-center text-sm text-febis-ink/45">
+                Aucune alerte — tout est à jour.
+              </li>
             ) : null}
           </ul>
         </div>
 
-        <div className="admin-panel p-5">
+        <div className="admin-panel p-5 lg:col-span-3">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="font-display text-lg font-bold text-febis-ink">
-              Derniers messages
-            </h2>
+            <div className="admin-section-label mb-0">
+              <h2>Derniers messages</h2>
+              <p>Inbox</p>
+            </div>
             <Link
               href="/admin/dashboard/contacts"
-              className="text-xs font-bold text-febis-red hover:underline"
+              className="shrink-0 text-xs font-bold text-febis-red transition hover:underline"
             >
               Tout voir →
             </Link>
           </div>
           {contacts.length === 0 ? (
-            <p className="mt-6 rounded-xl bg-febis-smoke/80 px-4 py-6 text-center text-sm text-febis-ink/50">
-              Aucun message.
+            <p className="mt-6 rounded-xl border border-dashed border-febis-ink/12 bg-febis-smoke/50 px-4 py-10 text-center text-sm text-febis-ink/50">
+              Aucun message pour le moment.
             </p>
           ) : (
-            <ul className="mt-4 space-y-2">
+            <ul className="mt-4 divide-y divide-febis-ink/6">
               {contacts.map((c) => (
                 <li
                   key={c.id}
-                  className="rounded-xl border border-febis-ink/6 bg-white/60 px-3.5 py-3"
+                  className="flex items-start justify-between gap-3 py-3.5 first:pt-1"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-febis-ink">
-                        {c.name}
-                      </p>
-                      <p className="truncate text-xs text-febis-ink/45">
-                        {c.email}
-                      </p>
-                    </div>
-                    <span className="shrink-0 rounded-md bg-febis-mist px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-febis-ink/55">
-                      {c.activity || "—"}
-                    </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-febis-ink">
+                      {c.name}
+                    </p>
+                    <p className="truncate text-xs text-febis-ink/45">
+                      {c.email}
+                    </p>
                   </div>
+                  <span className="shrink-0 rounded-md border border-febis-ink/8 bg-febis-mist/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-febis-ink/55">
+                    {c.activity || "—"}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -359,121 +389,27 @@ function OverviewTab({
         </div>
       </section>
 
-      <DashboardCharts data={charts} />
+      <div className="admin-rise admin-rise-delay-3">
+        <DashboardCharts data={charts} />
+      </div>
 
-      <section className="flex flex-wrap gap-3">
-        {onGoContenu ? (
-          <button type="button" onClick={onGoContenu} className="cta-premium">
-            Remplir le contenu du site →
-          </button>
-        ) : null}
+      <section className="admin-panel flex flex-wrap items-center justify-between gap-4 p-5 admin-rise admin-rise-delay-4">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-febis-gold-deep">
+            Accès rapide
+          </p>
+          <p className="mt-1 text-sm text-febis-ink/55">
+            Modules métier et exploitation.
+          </p>
+        </div>
         <button
           type="button"
           onClick={onGoMetier}
-          className="rounded-full border border-febis-ink/15 px-5 py-2.5 text-sm font-bold"
+          className="cta-premium"
         >
           Modules d’exploitation →
         </button>
       </section>
-    </div>
-  );
-}
-
-function ContenuTab({
-  modules,
-}: {
-  modules: Array<{
-    href: string;
-    label: string;
-    description: string;
-    mark: string;
-  }>;
-}) {
-  const [status, setStatus] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  async function seedHomepage() {
-    setLoading(true);
-    setStatus("");
-    setError("");
-    try {
-      const res = await fetch("/api/admin/seed-homepage", { method: "POST" });
-      const payload = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(payload.error ?? "Échec");
-      setStatus("Contenu d’accueil initialisé.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <div className="space-y-6" role="tabpanel">
-      <div className="admin-panel admin-panel-premium p-5">
-        <h2 className="font-display text-xl font-bold text-febis-ink">
-          Contenu à renseigner
-        </h2>
-        <p className="mt-1 max-w-2xl text-sm text-febis-ink/55">
-          Tout ce que l’administrateur doit compléter pour la vitrine — hero,
-          catégories, stats, pôles, blog, témoignages, plateforme et travaux —
-          est regroupé dans cet onglet.
-        </p>
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() => void seedHomepage()}
-            disabled={loading}
-            className="rounded-full border border-febis-ink/15 px-4 py-2 text-sm font-bold disabled:opacity-60"
-          >
-            {loading ? "Initialisation…" : "Initialiser le contenu par défaut"}
-          </button>
-          {status || error ? (
-            <p
-              className={cn(
-                "text-sm font-semibold",
-                error ? "text-febis-red" : "text-emerald-700",
-              )}
-            >
-              {error || status}
-            </p>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {modules.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="admin-panel admin-module-card group flex gap-3.5 p-4"
-          >
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-febis-red/15 bg-febis-red/8 text-xs font-extrabold text-febis-red transition group-hover:border-transparent group-hover:bg-febis-red group-hover:text-white">
-              {item.mark}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="flex items-center justify-between gap-2">
-                <span className="font-display text-lg font-bold text-febis-ink">
-                  {item.label}
-                </span>
-                <span className="text-febis-ink/25 transition group-hover:translate-x-0.5 group-hover:text-febis-red">
-                  →
-                </span>
-              </span>
-              <span className="mt-0.5 block text-sm text-febis-ink/50">
-                {item.description}
-              </span>
-            </span>
-          </Link>
-        ))}
-      </div>
-
-      {modules.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-febis-ink/15 px-6 py-10 text-center text-sm text-febis-ink/45">
-          Aucun module vitrine accessible pour ce profil.
-        </p>
-      ) : null}
     </div>
   );
 }
@@ -495,54 +431,62 @@ function MetierTab({
 }) {
   return (
     <div className="space-y-8" role="tabpanel">
-      <section>
-        <h2 className="mb-3 font-display text-lg font-bold text-febis-ink">
-          Activités
-        </h2>
+      <section className="admin-rise">
+        <div className="admin-section-label">
+          <h2>Activités</h2>
+          <p>Volumes</p>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {activityStats.map((stat) => (
+          {activityStats.map((stat, index) => (
             <Link
               key={stat.href}
               href={stat.href}
-              className="admin-panel p-4 transition hover:border-febis-red/25"
+              className={cn(
+                "admin-panel admin-kpi p-5",
+                `admin-rise admin-rise-delay-${Math.min(index + 1, 4)}`,
+              )}
             >
-              <div className="flex items-center gap-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-febis-red/10 text-[10px] font-extrabold text-febis-red">
-                  {stat.mark}
+              <span className="admin-kpi-meter" aria-hidden />
+              <div className="relative z-10 flex items-center gap-2.5">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-febis-red to-febis-red-deep text-base text-white shadow-lg shadow-febis-red/25">
+                  <AdminNavIcon href={stat.href} />
                 </span>
                 <p className="text-sm font-semibold text-febis-ink/60">
                   {stat.label}
                 </p>
               </div>
-              <p className="mt-3 font-display text-3xl font-extrabold text-febis-ink">
+              <p className="relative z-10 mt-4 font-display text-4xl font-extrabold tracking-tight text-febis-ink">
                 {stat.value}
               </p>
-              <p className="mt-1 text-xs text-febis-ink/45">{stat.hint}</p>
+              <p className="relative z-10 mt-1 text-xs text-febis-ink/45">
+                {stat.hint}
+              </p>
             </Link>
           ))}
         </div>
       </section>
 
-      <section>
-        <h2 className="mb-3 font-display text-lg font-bold text-febis-ink">
-          Transverse & demandes
-        </h2>
+      <section className="admin-rise admin-rise-delay-1">
+        <div className="admin-section-label">
+          <h2>Transverse & demandes</h2>
+          <p>Support</p>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {transverseStats.map((stat) => (
             <Link
               key={stat.href}
               href={stat.href}
-              className="admin-panel p-4 transition hover:border-febis-red/25"
+              className="admin-panel admin-kpi p-5"
             >
-              <div className="flex items-center gap-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-febis-red/10 text-[10px] font-extrabold text-febis-red">
-                  {stat.mark}
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-febis-gold/30 bg-[#c9a227]/12 text-base text-[#8a7010]">
+                  <AdminNavIcon href={stat.href} />
                 </span>
                 <p className="text-sm font-semibold text-febis-ink/60">
                   {stat.label}
                 </p>
               </div>
-              <p className="mt-3 font-display text-3xl font-extrabold text-febis-ink">
+              <p className="mt-4 font-display text-4xl font-extrabold tracking-tight text-febis-ink">
                 {stat.value}
               </p>
               <p className="mt-1 text-xs text-febis-ink/45">{stat.hint}</p>
@@ -551,23 +495,29 @@ function MetierTab({
         </div>
       </section>
 
-      <section>
-        <h2 className="mb-3 font-display text-lg font-bold text-febis-ink">
-          Tous les modules d’exploitation
-        </h2>
+      <section className="admin-rise admin-rise-delay-2">
+        <div className="admin-section-label">
+          <h2>Modules d’exploitation</h2>
+          <p>Navigation</p>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {modules.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="admin-panel group flex gap-3 p-4 transition hover:border-febis-red/25"
+              className="admin-panel admin-module-card group flex gap-3.5 p-4"
             >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-febis-red/10 text-xs font-extrabold text-febis-red">
-                {item.mark}
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-febis-red/15 bg-febis-red/8 text-lg text-febis-red transition group-hover:border-transparent group-hover:bg-febis-red group-hover:text-white">
+                <AdminNavIcon href={item.href} />
               </span>
-              <span>
-                <span className="block font-display text-base font-bold text-febis-ink group-hover:text-febis-red">
-                  {item.label}
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center justify-between gap-2">
+                  <span className="font-display text-base font-bold text-febis-ink group-hover:text-febis-red">
+                    {item.label}
+                  </span>
+                  <span className="text-febis-ink/20 transition group-hover:translate-x-0.5 group-hover:text-febis-red">
+                    →
+                  </span>
                 </span>
                 <span className="mt-0.5 block text-sm text-febis-ink/50">
                   {item.description}

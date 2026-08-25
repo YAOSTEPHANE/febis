@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState, useTransition } from "react";
 import { AdminPageHeader } from "@/components/admin/AdminForms";
+import { PaymentMethodsSettingsPanel } from "@/components/admin/PaymentMethodsSettingsPanel";
 import {
   ACTIVITIES,
   PAYMENT_CHANNELS,
@@ -92,7 +93,7 @@ export function PaiementsAdminClient() {
     <>
       <AdminPageHeader
         title="Paiements"
-        description="Mobile Money, virement, espèces — encaissements, décaissements et rattachement aux factures."
+        description="Wave CI, Orange Money, MTN, virement, espèces — encaissements, décaissements et rattachement aux factures."
       />
 
       <div className="mb-5 flex flex-wrap gap-3">
@@ -102,6 +103,10 @@ export function PaiementsAdminClient() {
         >
           ← Tableau Finance
         </Link>
+      </div>
+
+      <div className="mb-6">
+        <PaymentMethodsSettingsPanel />
       </div>
 
       {error ? (
@@ -214,8 +219,8 @@ export function PaiementsAdminClient() {
               placeholder="Montant XOF *"
               className="field-premium"
             />
-            <select name="channel" required className="field-premium" defaultValue="mobile_money">
-              {PAYMENT_CHANNELS.map((c) => (
+            <select name="channel" required className="field-premium" defaultValue="wave">
+              {PAYMENT_CHANNELS.filter((c) => c !== "mobile_money").map((c) => (
                 <option key={c} value={c}>
                   {paymentChannelLabel(c)}
                 </option>
@@ -244,7 +249,7 @@ export function PaiementsAdminClient() {
             </select>
             <input
               name="reference"
-              placeholder="Réf. / ID Wave / n° virement"
+              placeholder="Réf. Wave / n° Orange Money / ID transaction"
               className="field-premium"
             />
             <textarea name="notes" rows={2} placeholder="Notes" className="field-premium" />

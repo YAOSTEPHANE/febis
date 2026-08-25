@@ -5,6 +5,14 @@ import { AvailabilityCalendar } from "@/components/residences/AvailabilityCalend
 import type { CalendarDay, DayStatus } from "@/lib/types";
 import { formatXof, nightsBetween, type PublicLodging } from "@/lib/residences";
 
+type PaymentMethodOption = {
+  id: string;
+  label: string;
+  merchantName?: string;
+  merchantPhone?: string;
+  instructions?: string;
+};
+
 type Props = {
   lodging: PublicLodging;
   initialYear: number;
@@ -28,11 +36,37 @@ export function BookingPanel({
     "idle",
   );
   const [message, setMessage] = useState("");
+  const [mobileMethods, setMobileMethods] = useState<PaymentMethodOption[]>([]);
+  const [otherChannels, setOtherChannels] = useState<PaymentMethodOption[]>([]);
+  const [paymentChannel, setPaymentChannel] = useState("");
 
   const nights =
     checkIn && checkOut ? Math.max(0, nightsBetween(checkIn, checkOut)) : 0;
   const total = nights * lodging.pricePerNight;
   const deposit = Math.round((total * lodging.depositPercent) / 100);
+
+  const selectedMobile = useMemo(
+    () => mobileMethods.find((m) => m.id === paymentChannel) ?? null,
+    [mobileMethods, paymentChannel],
+  );
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/payment-methods");
+        const json = (await res.json()) as {
+          methods?: PaymentMethodOption[];
+          otherChannels?: PaymentMethodOption[];
+        };
+        if (res.ok) {
+          setMobileMethods(json.methods ?? []);
+          setOtherChannels(json.otherChannels ?? []);
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, []);
 
   const loadCalendar = useCallback(
     async (y: number, m: number) => {
@@ -208,13 +242,51 @@ export function BookingPanel({
 
             <label className="mt-3 block text-sm font-semibold text-febis-ink/80">
               Canal d’acompte souhaité
-              <select name="paymentChannel" className="field-premium mt-2" defaultValue="">
+              <select
+                name="paymentChannel"
+                className="field-premium mt-2"
+                value={paymentChannel}
+                onChange={(e) => setPaymentChannel(e.target.value)}
+              >
                 <option value="">À définir</option>
-                <option value="mobile_money">Mobile Money</option>
-                <option value="virement">Virement</option>
-                <option value="especes">Espèces</option>
+                {mobileMethods.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+                {otherChannels.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
               </select>
             </label>
+
+            {selectedMobile ? (
+              <div className="mt-3 rounded-xl border border-febis-orange/25 bg-febis-orange/8 px-4 py-3 text-sm text-febis-ink/80">
+                <p className="font-bold text-febis-ink">
+                  {selectedMobile.label}
+                  {selectedMobile.merchantPhone
+                    ? ` · ${selectedMobile.merchantPhone}`
+                    : ""}
+                </p>
+                {selectedMobile.merchantName ? (
+                  <p className="mt-1 text-xs text-febis-ink/55">
+                    Marchand : {selectedMobile.merchantName}
+                  </p>
+                ) : null}
+                {selectedMobile.instructions ? (
+                  <p className="mt-2 text-sm leading-relaxed">
+                    {selectedMobile.instructions}
+                  </p>
+                ) : null}
+                {deposit > 0 ? (
+                  <p className="mt-2 text-xs font-semibold text-febis-red">
+                    Acompte indicatif : {formatXof(deposit)}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
 
             <label className="mt-3 block text-sm font-semibold text-febis-ink/80">
               Message

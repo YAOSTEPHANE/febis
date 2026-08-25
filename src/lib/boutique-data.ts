@@ -16,6 +16,7 @@ import {
 } from "@/lib/boutique-shared";
 import type {
   OrderStatus,
+  PaymentChannel,
   ProductCategory,
   ProductDoc,
   ProductVariant,
@@ -23,6 +24,7 @@ import type {
   ShopOrderLine,
 } from "@/lib/types";
 import { linkProjectAndInvoice, touchClient } from "@/lib/crm";
+import { notifyStockLowItem } from "@/lib/notifications";
 
 type ProductRecord = Omit<ProductDoc, "_id"> & { _id: ObjectId };
 type OrderRecord = Omit<ShopOrderDoc, "_id"> & { _id: ObjectId };
@@ -70,6 +72,7 @@ export function serializeOrder(
     clientPhone: doc.clientPhone,
     deliveryAddress: doc.deliveryAddress,
     message: doc.message ?? "",
+    paymentChannel: doc.paymentChannel ?? null,
     lines: doc.lines,
     totalAmount: doc.totalAmount,
     currency: doc.currency,
@@ -160,7 +163,7 @@ export async function listPublicProducts(filters?: {
       .limit(200)
       .toArray();
 
-    if (docs.length === 0) return applyFilters(FALLBACK_PRODUCTS);
+    // Catalogue réel uniquement — liste vide si aucun produit en base
     return applyFilters(docs.map((doc) => serializeProduct(doc)));
   } catch {
     return applyFilters(FALLBACK_PRODUCTS);
@@ -183,7 +186,7 @@ export async function getPublicProductBySlug(
       .collection<ProductRecord>("products")
       .findOne({ slug: normalized });
     if (doc) return serializeProduct(doc);
-    return FALLBACK_PRODUCTS.find((p) => p.slug === normalized) ?? null;
+    return null;
   } catch {
     return FALLBACK_PRODUCTS.find((p) => p.slug === normalized) ?? null;
   }
@@ -336,6 +339,20 @@ export async function updateProduct(
   const updated = await db
     .collection<ProductRecord>("products")
     .findOne({ _id: existing._id });
+  if (updated) {
+    const stock = (updated.variants ?? []).reduce(
+      (sum, v) => sum + Number(v.stock ?? 0),
+      0,
+    );
+    if (stock <= 2) {
+      void notifyStockLowItem({
+        source: "product",
+        name: updated.name,
+        available: stock,
+        ref: updated.slug || updated._id.toString(),
+      }).catch(() => undefined);
+    }
+  }
   return updated ? serializeProduct(updated) : null;
 }
 
@@ -348,20 +365,63 @@ export async function deleteProduct(id: string): Promise<boolean> {
   return result.deletedCount === 1;
 }
 
+/** Importe le catalogue de démo (upsert par slug) pour démarrer la gestion produits. */
+export async function importDemoProducts(): Promise<{
+  upserted: number;
+  total: number;
+}> {
+  const db = await tryDb();
+  if (!db) throw new Error("MongoDB indisponible.");
+
+  const now = new Date();
+  let upserted = 0;
+
+  for (const product of FALLBACK_PRODUCTS) {
+    const result = await db.collection("products").updateOne(
+      { slug: product.slug },
+      {
+        $set: {
+          name: product.name,
+          slug: product.slug,
+          category: product.category,
+          description: product.description,
+          photo: product.photo,
+          currency: "XOF" as const,
+          variants: product.variants,
+          featured: product.featured,
+          updatedAt: now,
+        },
+        $setOnInsert: { createdAt: now },
+      },
+      { upsert: true },
+    );
+    if (result.upsertedCount > 0 || result.modifiedCount > 0) {
+      upserted += 1;
+    }
+  }
+
+  const total = await db.collection("products").countDocuments();
+  return { upserted, total };
+}
+
 export async function createShopOrder(input: {
   clientName: string;
   clientEmail: string;
   clientPhone: string;
   deliveryAddress: string;
   message?: string;
+  paymentChannel?: PaymentChannel | null;
+  status?: OrderStatus;
   items: Array<{ slug: string; sku: string; quantity: number }>;
 }) {
-  const catalog = await listPublicProducts();
+  const catalog = await listAdminProducts();
+  const publicFallback =
+    catalog.length > 0 ? catalog : await listPublicProducts();
   const lines: ShopOrderLine[] = [];
   const db = await tryDb();
 
   for (const item of input.items) {
-    const product = catalog.find((p) => p.slug === item.slug);
+    const product = publicFallback.find((p) => p.slug === item.slug);
     if (!product) {
       throw new Error(`Produit introuvable : ${item.slug}`);
     }
@@ -387,19 +447,23 @@ export async function createShopOrder(input: {
     throw new Error("Le panier est vide.");
   }
 
+  const status: OrderStatus =
+    input.status && isOrderStatus(input.status) ? input.status : "en_attente";
+
   const totalAmount = lines.reduce((sum, line) => sum + line.lineTotal, 0);
   const now = new Date();
   const doc: Omit<ShopOrderDoc, "_id"> = {
     orderNumber: orderNumber(),
-    clientName: input.clientName,
-    clientEmail: input.clientEmail.toLowerCase(),
-    clientPhone: input.clientPhone,
-    deliveryAddress: input.deliveryAddress,
-    message: input.message,
+    clientName: input.clientName.trim(),
+    clientEmail: input.clientEmail.trim().toLowerCase(),
+    clientPhone: input.clientPhone.trim(),
+    deliveryAddress: input.deliveryAddress.trim(),
+    message: input.message?.trim() || undefined,
+    paymentChannel: input.paymentChannel ?? null,
     lines,
     totalAmount,
     currency: "XOF",
-    status: "en_attente",
+    status,
     createdAt: now,
     updatedAt: now,
   };
@@ -411,14 +475,35 @@ export async function createShopOrder(input: {
     };
   }
 
-  for (const line of lines) {
-    await db.collection("products").updateOne(
-      { slug: line.productSlug, "variants.sku": line.sku },
-      {
-        $inc: { "variants.$.stock": -line.quantity },
-        $set: { updatedAt: now },
-      },
-    );
+  if (status !== "annulee") {
+    for (const line of lines) {
+      await db.collection("products").updateOne(
+        { slug: line.productSlug, "variants.sku": line.sku },
+        {
+          $inc: { "variants.$.stock": -line.quantity },
+          $set: { updatedAt: now },
+        },
+      );
+    }
+
+    for (const line of lines) {
+      const product = await db
+        .collection<ProductRecord>("products")
+        .findOne({ slug: line.productSlug });
+      if (!product) continue;
+      const stock = (product.variants ?? []).reduce(
+        (sum, v) => sum + Number(v.stock ?? 0),
+        0,
+      );
+      if (stock <= 2) {
+        void notifyStockLowItem({
+          source: "product",
+          name: product.name,
+          available: stock,
+          ref: product.slug || product._id.toString(),
+        }).catch(() => undefined);
+      }
+    }
   }
 
   const result = await db.collection("shopOrders").insertOne(doc);

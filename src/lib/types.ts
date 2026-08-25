@@ -42,11 +42,28 @@ export const RESERVATION_STEPS = [
 export type ReservationStep = (typeof RESERVATION_STEPS)[number];
 
 export const PAYMENT_CHANNELS = [
+  "wave",
+  "orange_money",
+  "mtn_money",
   "mobile_money",
   "virement",
   "especes",
 ] as const;
 export type PaymentChannel = (typeof PAYMENT_CHANNELS)[number];
+
+/** Providers Mobile Money (hors legacy / virement / espèces). */
+export const MOBILE_MONEY_PROVIDERS = [
+  "wave",
+  "orange_money",
+  "mtn_money",
+] as const;
+export type MobileMoneyProvider = (typeof MOBILE_MONEY_PROVIDERS)[number];
+
+export function isMobileMoneyProvider(
+  channel: string,
+): channel is MobileMoneyProvider {
+  return (MOBILE_MONEY_PROVIDERS as readonly string[]).includes(channel);
+}
 
 export type UserDoc = {
   _id?: string;
@@ -471,6 +488,7 @@ export type ShopOrderDoc = {
   clientPhone: string;
   deliveryAddress: string;
   message?: string;
+  paymentChannel?: PaymentChannel | null;
   lines: ShopOrderLine[];
   totalAmount: number;
   currency: "XOF";

@@ -61,13 +61,13 @@ export function Contact() {
   return (
     <section id="contact" className="relative overflow-hidden pt-8 pb-14 md:pt-10 md:pb-20">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-febis-mist/80 to-transparent" />
-      <div className="relative mx-auto max-w-7xl px-5 md:px-8">
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-5 lg:px-8">
         <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10">
           <Reveal>
             <p className="mb-2 text-sm font-bold uppercase tracking-[0.22em] text-febis-red">
               Contact
             </p>
-            <h2 className="font-display text-3xl font-extrabold tracking-tight text-febis-ink md:text-4xl">
+            <h2 className="font-display text-[1.7rem] font-extrabold tracking-tight text-febis-ink sm:text-3xl md:text-4xl">
               Parlons de votre{" "}
               <span className="text-gold-sheen">besoin FEBiS</span>.
             </h2>
@@ -92,7 +92,7 @@ export function Contact() {
           <Reveal delay={0.1}>
             <form
               onSubmit={onSubmit}
-              className="relative overflow-hidden rounded-[1.5rem] border border-febis-ink/8 bg-white/70 p-6 shadow-[0_30px_80px_rgba(160,16,24,0.08)] backdrop-blur-xl md:p-8"
+              className="relative overflow-hidden rounded-[1.25rem] border border-febis-ink/8 bg-white/70 p-4 shadow-[0_30px_80px_rgba(160,16,24,0.08)] backdrop-blur-xl sm:rounded-[1.5rem] sm:p-6 md:p-8"
             >
               <div
                 className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-febis-orange/20 blur-2xl"
@@ -166,11 +166,11 @@ export function Contact() {
                 />
               </label>
 
-              <div className="mt-6 flex flex-wrap items-center gap-4">
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
                 <button
                   type="submit"
                   disabled={status === "loading"}
-                  className="cta-premium disabled:cursor-wait disabled:opacity-70"
+                  className="cta-premium w-full justify-center disabled:cursor-wait disabled:opacity-70 sm:w-auto"
                 >
                   {status === "loading" ? "Envoi…" : "Envoyer le message"}
                 </button>

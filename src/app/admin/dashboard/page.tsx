@@ -1,5 +1,6 @@
 import { getDb } from "@/lib/mongodb";
 import { requireAdminSession } from "@/lib/admin-auth";
+import { roleLabel } from "@/lib/auth";
 import { permissionsFor } from "@/lib/rbac-shared";
 import { getDirectionMetrics } from "@/lib/direction-metrics";
 import { getRhOverview } from "@/lib/rh";
@@ -228,6 +229,8 @@ export default async function AdminDashboardPage() {
 
   return (
     <AdminDashboardShell
+      operatorName={session.name}
+      roleLabel={roleLabel(session.role)}
       dbOk={dbOk}
       generatedAt={generatedAt}
       pilot={pilot}

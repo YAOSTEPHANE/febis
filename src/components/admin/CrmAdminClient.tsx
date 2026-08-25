@@ -3,10 +3,40 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState, useTransition } from "react";
 import { AdminPageHeader } from "@/components/admin/AdminForms";
+import { AdminFormOverlay } from "@/components/admin/AdminFormOverlay";
 import type { CrmStats, SerializedClient } from "@/lib/crm-shared";
 import { activityLabel, clientStatusLabel } from "@/lib/crm-shared";
 import { ACTIVITIES, CLIENT_STATUSES } from "@/lib/types";
 import { cn } from "@/lib/cn";
+
+type FormState = {
+  name: string;
+  email: string;
+  phone: string;
+  company: string;
+  tags: string;
+  status: string;
+};
+
+const emptyForm = (): FormState => ({
+  name: "",
+  email: "",
+  phone: "",
+  company: "",
+  tags: "",
+  status: "prospect",
+});
+
+function clientToForm(c: SerializedClient): FormState {
+  return {
+    name: c.name,
+    email: c.email ?? "",
+    phone: c.phone ?? "",
+    company: c.company ?? "",
+    tags: (c.tags ?? []).join(", "),
+    status: c.status,
+  };
+}
 
 export function CrmAdminClient() {
   const [clients, setClients] = useState<SerializedClient[]>([]);
@@ -18,7 +48,10 @@ export function CrmAdminClient() {
   const [status, setStatus] = useState("all");
   const [tag, setTag] = useState("all");
   const [error, setError] = useState("");
-  const [creating, setCreating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<FormState>(emptyForm);
   const [pending, startTransition] = useTransition();
 
   const load = useCallback(async () => {
@@ -71,39 +104,58 @@ export function CrmAdminClient() {
     return () => clearTimeout(timer);
   }, [load]);
 
-  async function onCreate(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setCreating(true);
+  function openCreate() {
+    setEditingId(null);
+    setForm(emptyForm());
     setError("");
-    const data = new FormData(event.currentTarget);
+    setFormOpen(true);
+  }
+
+  function openEdit(c: SerializedClient) {
+    setEditingId(c.id);
+    setForm(clientToForm(c));
+    setError("");
+    setFormOpen(true);
+  }
+
+  function closeForm() {
+    setFormOpen(false);
+    setEditingId(null);
+    setForm(emptyForm());
+  }
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    const payload = {
+      name: form.name,
+      email: form.email,
+      phone: form.phone,
+      company: form.company,
+      status: form.status,
+      tags: form.tags,
+    };
     try {
-      const res = await fetch("/api/admin/crm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: data.get("name"),
-          email: data.get("email"),
-          phone: data.get("phone"),
-          company: data.get("company"),
-          status: data.get("status") || "prospect",
-          tags: data.get("tags"),
-        }),
-      });
+      const res = await fetch(
+        editingId ? `/api/admin/crm/${editingId}` : "/api/admin/crm",
+        {
+          method: editingId ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
       const json = (await res.json()) as {
         client?: SerializedClient;
         error?: string;
       };
-      if (!res.ok) throw new Error(json.error ?? "Création impossible");
-      event.currentTarget.reset();
-      if (json.client?.id) {
-        window.location.href = `/admin/dashboard/crm/${json.client.id}`;
-        return;
-      }
+      if (!res.ok) throw new Error(json.error ?? "Enregistrement impossible");
+      closeForm();
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur");
     } finally {
-      setCreating(false);
+      setSaving(false);
     }
   }
 
@@ -112,6 +164,11 @@ export function CrmAdminClient() {
       <AdminPageHeader
         title="CRM transversal"
         description="Base clients unique partagée (CDC §4.6) — historique, factures et projets liés automatiquement."
+        actions={
+          <button type="button" onClick={openCreate} className="cta-premium">
+            + Nouveau client
+          </button>
+        }
       />
 
       {stats ? (
@@ -134,127 +191,79 @@ export function CrmAdminClient() {
         </div>
       ) : null}
 
-      <div className="mb-6 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <div className="admin-panel admin-panel-premium p-5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-febis-gold-deep">
-            Recherche & filtres
-          </p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <label className="sm:col-span-2 block text-sm font-semibold text-febis-ink/80">
-              Rechercher
-              <input
-                className="field-premium mt-2"
-                placeholder="Nom, email, téléphone, société, tag…"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-              />
-            </label>
-            <label className="block text-sm font-semibold text-febis-ink/80">
-              Module
-              <select
-                className="field-premium mt-2"
-                value={activity}
-                onChange={(e) => setActivity(e.target.value)}
-              >
-                <option value="all">Tous</option>
-                <option value="general">Général</option>
-                {ACTIVITIES.map((a) => (
-                  <option key={a} value={a}>
-                    {activityLabel(a)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block text-sm font-semibold text-febis-ink/80">
-              Statut
-              <select
-                className="field-premium mt-2"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <option value="all">Tous</option>
-                {CLIENT_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {clientStatusLabel(s)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block text-sm font-semibold text-febis-ink/80 sm:col-span-2">
-              Tag
-              <select
-                className="field-premium mt-2"
-                value={tag}
-                onChange={(e) => setTag(e.target.value)}
-              >
-                <option value="all">Tous les tags</option>
-                {tags.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <p className="sm:col-span-2 text-sm text-febis-ink/45">
-              {pending || loading
-                ? "Actualisation…"
-                : `${clients.length} client${clients.length > 1 ? "s" : ""}`}
-            </p>
-          </div>
+      <div className="admin-panel admin-panel-premium mb-4 p-5">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-febis-gold-deep">
+          Recherche & filtres
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="block text-sm font-semibold text-febis-ink/80 sm:col-span-2 lg:col-span-4">
+            Rechercher
+            <input
+              className="field-premium mt-2"
+              placeholder="Nom, email, téléphone, société, tag…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </label>
+          <label className="block text-sm font-semibold text-febis-ink/80">
+            Module
+            <select
+              className="field-premium mt-2"
+              value={activity}
+              onChange={(e) => setActivity(e.target.value)}
+            >
+              <option value="all">Tous</option>
+              <option value="general">Général</option>
+              {ACTIVITIES.map((a) => (
+                <option key={a} value={a}>
+                  {activityLabel(a)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-sm font-semibold text-febis-ink/80">
+            Statut
+            <select
+              className="field-premium mt-2"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              <option value="all">Tous</option>
+              {CLIENT_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {clientStatusLabel(s)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-sm font-semibold text-febis-ink/80 sm:col-span-2">
+            Tag
+            <select
+              className="field-premium mt-2"
+              value={tag}
+              onChange={(e) => setTag(e.target.value)}
+            >
+              <option value="all">Tous les tags</option>
+              {tags.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
-
-        <form onSubmit={onCreate} className="admin-panel space-y-3 p-5">
-          <p className="font-display text-lg font-bold text-febis-ink">
-            Nouveau client
-          </p>
-          <input
-            required
-            name="name"
-            className="field-premium"
-            placeholder="Nom complet *"
-          />
-          <input
-            name="email"
-            type="email"
-            className="field-premium"
-            placeholder="Email"
-          />
-          <input name="phone" className="field-premium" placeholder="Téléphone" />
-          <input
-            name="company"
-            className="field-premium"
-            placeholder="Société"
-          />
-          <input
-            name="tags"
-            className="field-premium"
-            placeholder="Tags (séparés par des virgules)"
-          />
-          <select name="status" className="field-premium" defaultValue="prospect">
-            {CLIENT_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {clientStatusLabel(s)}
-              </option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            disabled={creating}
-            className="cta-premium w-full justify-center disabled:opacity-60"
-          >
-            {creating ? "Création…" : "Ajouter au CRM"}
-          </button>
-          <p className="text-xs text-febis-ink/45">
-            Email / téléphone déjà connus → fusion automatique (pas de doublon).
-          </p>
-        </form>
+        <p className="mt-2 text-sm text-febis-ink/45">
+          {pending || loading
+            ? "Actualisation…"
+            : `${clients.length} client${clients.length > 1 ? "s" : ""}`}
+        </p>
       </div>
 
-      {error && (
+      {error && !formOpen ? (
         <p className="mb-4 rounded-xl border border-febis-red/20 bg-febis-red/8 px-3 py-2 text-sm font-semibold text-febis-red">
           {error}
         </p>
-      )}
+      ) : null}
 
       <div className="admin-panel overflow-hidden">
         <table className="w-full text-left text-sm">
@@ -265,7 +274,7 @@ export function CrmAdminClient() {
               <th className="px-4 py-3">Modules</th>
               <th className="px-4 py-3">Statut</th>
               <th className="px-4 py-3">Interactions</th>
-              <th className="px-4 py-3" />
+              <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-febis-ink/8">
@@ -277,9 +286,15 @@ export function CrmAdminClient() {
               </tr>
             ) : clients.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-febis-ink/50">
-                  Aucun client. Contact, réservation, devis, boutique et BTP
-                  alimentent automatiquement cette base.
+                <td colSpan={6} className="px-4 py-8 text-center text-febis-ink/50">
+                  Aucun client.{" "}
+                  <button
+                    type="button"
+                    onClick={openCreate}
+                    className="font-bold text-febis-gold-deep underline"
+                  >
+                    Ajouter un client
+                  </button>
                 </td>
               </tr>
             ) : (
@@ -341,13 +356,22 @@ export function CrmAdminClient() {
                   <td className="px-4 py-3 font-semibold text-febis-ink">
                     {client.interactionsCount}
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/admin/dashboard/crm/${client.id}`}
-                      className="text-sm font-bold text-febis-red hover:underline"
-                    >
-                      Fiche →
-                    </Link>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(client)}
+                        className="rounded-full border border-febis-ink/15 px-3 py-1.5 text-xs font-bold"
+                      >
+                        Modifier
+                      </button>
+                      <Link
+                        href={`/admin/dashboard/crm/${client.id}`}
+                        className="rounded-full border border-febis-red/20 px-3 py-1.5 text-xs font-bold text-febis-red"
+                      >
+                        Fiche
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -355,6 +379,97 @@ export function CrmAdminClient() {
           </tbody>
         </table>
       </div>
+
+      <AdminFormOverlay
+        open={formOpen}
+        title={editingId ? "Modifier le client" : "Nouveau client"}
+        subtitle="Profil CRM — email / téléphone déjà connus → fusion automatique"
+        onClose={closeForm}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={closeForm}
+              className="rounded-full border border-febis-ink/15 px-4 py-2.5 text-sm font-bold"
+            >
+              Fermer
+            </button>
+            {editingId ? (
+              <Link
+                href={`/admin/dashboard/crm/${editingId}`}
+                className="rounded-full border border-febis-red/20 px-4 py-2.5 text-sm font-bold text-febis-red"
+              >
+                Ouvrir la fiche
+              </Link>
+            ) : null}
+            <button
+              type="submit"
+              form="crm-form"
+              disabled={saving}
+              className="cta-premium ml-auto disabled:opacity-60"
+            >
+              {saving
+                ? "Enregistrement…"
+                : editingId
+                  ? "Enregistrer"
+                  : "Ajouter au CRM"}
+            </button>
+          </>
+        }
+      >
+        {error && formOpen ? (
+          <p className="mb-4 rounded-xl border border-febis-red/20 bg-febis-red/5 px-3 py-2 text-sm font-semibold text-febis-red">
+            {error}
+          </p>
+        ) : null}
+        <form id="crm-form" onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-2">
+          <input
+            required
+            value={form.name}
+            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            className="field-premium sm:col-span-2"
+            placeholder="Nom complet *"
+          />
+          <input
+            type="email"
+            value={form.email}
+            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+            className="field-premium"
+            placeholder="Email"
+          />
+          <input
+            value={form.phone}
+            onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+            className="field-premium"
+            placeholder="Téléphone"
+          />
+          <input
+            value={form.company}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, company: e.target.value }))
+            }
+            className="field-premium"
+            placeholder="Société"
+          />
+          <select
+            value={form.status}
+            onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
+            className="field-premium"
+          >
+            {CLIENT_STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {clientStatusLabel(s)}
+              </option>
+            ))}
+          </select>
+          <input
+            value={form.tags}
+            onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))}
+            className="field-premium sm:col-span-2"
+            placeholder="Tags (séparés par des virgules)"
+          />
+        </form>
+      </AdminFormOverlay>
     </>
   );
 }

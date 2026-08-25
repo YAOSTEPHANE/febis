@@ -53,13 +53,13 @@ export function HeroSearchBar() {
   return (
     <section
       id="recherche-sejour"
-      className="hero-search relative z-20 -mt-8 w-full px-5 pb-1 md:-mt-10 md:px-8"
+      className="hero-search relative z-20 -mt-6 w-full px-4 pb-1 sm:-mt-8 sm:px-5 md:-mt-10 lg:px-8"
     >
       <form
         onSubmit={onSubmit}
-        className="hero-search-panel mx-auto grid max-w-7xl gap-3 rounded-[1.35rem] border border-febis-ink/8 bg-white p-3 shadow-[0_28px_70px_rgba(26,18,16,0.14)] md:grid-cols-[1.2fr_1fr_1fr_auto] md:gap-0 md:p-2"
+        className="hero-search-panel mx-auto grid max-w-7xl gap-2 rounded-[1.35rem] border border-febis-ink/8 bg-white p-2.5 shadow-[0_28px_70px_rgba(26,18,16,0.14)] sm:gap-3 sm:p-3 md:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_auto] lg:gap-0 lg:p-2"
       >
-        <label className="hero-search-field md:rounded-l-[1.1rem]">
+        <label className="hero-search-field md:col-span-2 lg:col-span-1 lg:rounded-l-[1.1rem]">
           <span className="hero-search-label">Destination</span>
           <select
             value={destination}
@@ -75,7 +75,7 @@ export function HeroSearchBar() {
           </select>
         </label>
 
-        <label className="hero-search-field md:border-l md:border-febis-ink/8">
+        <label className="hero-search-field lg:border-l lg:border-febis-ink/8">
           <span className="hero-search-label">Date d&apos;arrivée</span>
           <input
             type="date"
@@ -92,7 +92,7 @@ export function HeroSearchBar() {
           />
         </label>
 
-        <label className="hero-search-field md:border-l md:border-febis-ink/8">
+        <label className="hero-search-field lg:border-l lg:border-febis-ink/8">
           <span className="hero-search-label">Date de retour</span>
           <input
             type="date"
@@ -105,8 +105,11 @@ export function HeroSearchBar() {
           />
         </label>
 
-        <div className="flex items-stretch p-1 md:pl-2">
-          <button type="submit" className="cta-premium w-full !rounded-[1rem] md:min-w-[160px]">
+        <div className="flex items-stretch p-1 md:col-span-2 lg:col-span-1 lg:pl-2">
+          <button
+            type="submit"
+            className="cta-premium w-full !rounded-[1rem] lg:min-w-[160px]"
+          >
             Rechercher
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
               <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />

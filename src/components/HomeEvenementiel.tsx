@@ -43,18 +43,18 @@ export function HomeEvenementiel({
       <div className="absolute -right-20 top-10 h-72 w-72 rounded-full bg-febis-orange/10 blur-3xl" />
       <div className="absolute -left-16 bottom-0 h-64 w-64 rounded-full bg-febis-gold/15 blur-3xl" />
 
-      <div className="relative mx-auto max-w-7xl px-5 md:px-8">
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-5 lg:px-8">
         <Reveal>
           <p className="mb-2 text-sm font-bold uppercase tracking-[0.22em] text-febis-red">
             Module CDC · Événementiel
           </p>
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div className="max-w-2xl">
-              <h2 className="font-display text-3xl font-extrabold tracking-tight text-febis-ink md:text-4xl">
+              <h2 className="font-display text-[1.7rem] font-extrabold tracking-tight text-febis-ink sm:text-3xl md:text-4xl">
                 Location matériel.{" "}
                 <span className="text-gold-sheen">Disponibilité live.</span>
               </h2>
-              <p className="mt-3 text-base text-febis-ink/65">
+              <p className="mt-3 text-sm text-febis-ink/65 sm:text-base">
                 Catalogue, cautions, devis, sorties/retours et pénalités —
                 le parcours complet FEBiS pour vos événements.
               </p>
@@ -68,9 +68,9 @@ export function HomeEvenementiel({
           </div>
         </Reveal>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 md:mt-8 lg:grid-cols-5">
+        <div className="-mx-4 mt-6 flex gap-3 overflow-x-auto px-4 pb-2 snap-x snap-mandatory sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0 md:mt-8 lg:grid-cols-5">
           {EVENT_PROCESS.map((step, index) => (
-            <Reveal key={step.title} delay={index * 0.05}>
+            <Reveal key={step.title} delay={index * 0.05} className="min-w-[78%] snap-start sm:min-w-0">
               <div className="h-full border-l-2 border-febis-red/70 bg-white/50 p-4 backdrop-blur-sm">
                 <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-febis-red">
                   {String(index + 1).padStart(2, "0")}
@@ -86,7 +86,7 @@ export function HomeEvenementiel({
           ))}
         </div>
 
-        <div className="mt-6 grid gap-5 md:mt-8 md:grid-cols-3">
+        <div className="mt-6 grid gap-5 sm:grid-cols-2 md:mt-8 lg:grid-cols-3">
           {preview.map((item, index) => (
             <Reveal key={item.slug} delay={index * 0.08}>
               <article className="lodging-card group overflow-hidden">
@@ -96,7 +96,7 @@ export function HomeEvenementiel({
                       src={item.photo}
                       alt={item.name}
                       fill
-                      sizes="(max-width: 768px) 100vw, 33vw"
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                       className="object-cover transition-transform duration-700 group-hover:scale-105"
                     />
                     <div className="absolute left-4 top-4">

@@ -10,14 +10,14 @@ export function Footer() {
         <span />
       </div>
 
-      <div className="relative mx-auto flex max-w-7xl flex-col gap-10 px-5 py-14 md:flex-row md:items-end md:justify-between md:px-8">
+      <div className="relative mx-auto flex max-w-7xl flex-col gap-8 px-4 py-12 sm:px-5 sm:py-14 md:flex-row md:items-end md:justify-between lg:px-8">
         <div>
           <Image
             src="/logo-febis.jpg"
             alt="FEBiS"
             width={160}
             height={56}
-            className="mb-5 h-11 w-auto rounded-sm object-contain"
+            className="mb-5 h-10 w-auto rounded-sm object-contain sm:h-11"
           />
           <p className="max-w-sm text-sm leading-relaxed text-white/65">
             FEBiS — résidences meublées, BTP, événementiel et boutique en Côte
@@ -25,7 +25,7 @@ export function Footer() {
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-6 text-sm font-semibold text-white/75">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm font-semibold text-white/75 sm:flex sm:flex-wrap sm:gap-6">
           <Link href="/residences" className="hover:text-febis-amber">
             Résidences
           </Link>
@@ -53,7 +53,7 @@ export function Footer() {
         </div>
       </div>
 
-      <div className="relative border-t border-white/10 px-5 py-5 text-center text-xs text-white/45 md:px-8">
+      <div className="relative border-t border-white/10 px-4 py-5 text-center text-xs leading-relaxed text-white/45 sm:px-5 lg:px-8">
         © {new Date().getFullYear()} FEBiS. Tous droits réservés. · Réf.
         NYI-CDC-FEBIS-2026-001
       </div>

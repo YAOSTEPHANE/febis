@@ -27,6 +27,7 @@ import type {
   QuoteStatus,
 } from "@/lib/types";
 import { linkProjectAndInvoice, touchClient } from "@/lib/crm";
+import { notifyStockLowItem } from "@/lib/notifications";
 
 type EquipmentRecord = Omit<EquipmentDoc, "_id"> & { _id: ObjectId };
 type QuoteRecord = Omit<EventQuoteDoc, "_id"> & { _id: ObjectId };
@@ -303,7 +304,30 @@ export async function updateEquipment(
   }
 
   await db.collection("equipment").updateOne({ slug }, { $set });
+
+  if (
+    quantityTotal > 0 &&
+    quantityAvailable / quantityTotal <= 0.2
+  ) {
+    void notifyStockLowItem({
+      source: "equipment",
+      name: ($set.name as string | undefined) ?? existing.name,
+      available: quantityAvailable,
+      total: quantityTotal,
+      ref: slug,
+    }).catch(() => undefined);
+  }
+
   return getEquipmentBySlug(slug);
+}
+
+export async function deleteEquipment(slug: string): Promise<boolean> {
+  const db = await tryDb();
+  if (!db) return false;
+  const normalized = slug.trim().toLowerCase();
+  if (!normalized) return false;
+  const result = await db.collection("equipment").deleteOne({ slug: normalized });
+  return result.deletedCount === 1;
 }
 
 export async function createEventQuote(input: {
@@ -519,6 +543,19 @@ async function adjustStock(
       },
     },
   );
+
+  if (
+    existing.quantityTotal > 0 &&
+    quantityAvailable / existing.quantityTotal <= 0.2
+  ) {
+    void notifyStockLowItem({
+      source: "equipment",
+      name: existing.name,
+      available: quantityAvailable,
+      total: existing.quantityTotal,
+      ref: slug,
+    }).catch(() => undefined);
+  }
 
   return serializeEquipment({
     ...existing,

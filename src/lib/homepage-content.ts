@@ -193,10 +193,14 @@ export const HOMEPAGE_DEFAULTS: HomepagePayloadMap = {
 
 export type AdminNavGroup =
   | "overview"
-  | "vitrine"
+  | "parametres"
   | "activites"
   | "transverse"
-  | "inbox";
+  | "inbox"
+  /** Contenu site — accessible via Paramètres, pas dans le menu latéral */
+  | "settings"
+  /** Fonctionnalités transverses — via Paramètres, pas des modules métier */
+  | "outils";
 
 export type AdminNavItem = {
   href: string;
@@ -204,6 +208,8 @@ export type AdminNavItem = {
   description: string;
   group: AdminNavGroup;
   mark: string;
+  /** Affiché dans la sidebar (défaut true). false = uniquement via Paramètres */
+  menu?: boolean;
   /** Permission RBAC requise (CDC §4.10) */
   permission:
     | "dashboard"
@@ -224,9 +230,8 @@ export const ADMIN_NAV_GROUPS: {
   label: string;
 }[] = [
   { id: "overview", label: "Pilotage" },
-  { id: "vitrine", label: "Vitrine" },
-  { id: "activites", label: "Activités" },
-  { id: "transverse", label: "Transverse" },
+  { id: "activites", label: "Modules" },
+  { id: "transverse", label: "Gestion" },
   { id: "inbox", label: "Demandes" },
 ];
 
@@ -234,7 +239,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
   {
     href: "/admin/dashboard",
     label: "Tableau de bord",
-    description: "Indicateurs, contenu & exploitation",
+    description: "Indicateurs & exploitation",
     group: "overview",
     mark: "TB",
     permission: "dashboard",
@@ -246,94 +251,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
     group: "overview",
     mark: "DI",
     permission: "dashboard",
-  },
-  {
-    href: "/admin/dashboard/recherche",
-    label: "Recherche",
-    description: "Moteur multi-critères",
-    group: "overview",
-    mark: "RE",
-    permission: "search",
-  },
-  {
-    href: "/admin/dashboard/notifications",
-    label: "Notifications",
-    description: "Email, WhatsApp, SMS",
-    group: "overview",
-    mark: "NO",
-    permission: "notifications",
-  },
-  {
-    href: "/admin/dashboard/utilisateurs",
-    label: "Utilisateurs",
-    description: "Profils & droits d’accès",
-    group: "overview",
-    mark: "UT",
-    permission: "users",
-  },
-  {
-    href: "/admin/dashboard/sauvegardes",
-    label: "Sauvegardes",
-    description: "Snapshots automatiques",
-    group: "overview",
-    mark: "SA",
-    permission: "backup",
-  },
-  {
-    href: "/admin/dashboard/hero",
-    label: "Hero",
-    description: "Titre, CTA, marque",
-    group: "vitrine",
-    mark: "HE",
-    permission: "vitrine",
-  },
-  {
-    href: "/admin/dashboard/categories",
-    label: "Catégories",
-    description: "Types de logements",
-    group: "vitrine",
-    mark: "CA",
-    permission: "vitrine",
-  },
-  {
-    href: "/admin/dashboard/stats",
-    label: "Bandeau stats",
-    description: "Indicateurs confiance",
-    group: "vitrine",
-    mark: "ST",
-    permission: "vitrine",
-  },
-  {
-    href: "/admin/dashboard/poles",
-    label: "Pôles",
-    description: "Quatre activités",
-    group: "vitrine",
-    mark: "PÔ",
-    permission: "vitrine",
-  },
-  {
-    href: "/admin/dashboard/blog",
-    label: "Blog",
-    description: "Articles",
-    group: "vitrine",
-    mark: "BL",
-    permission: "vitrine",
-  },
-  {
-    href: "/admin/dashboard/temoignages",
-    label: "Témoignages",
-    description: "Avis clients",
-    group: "vitrine",
-    mark: "TÉ",
-    permission: "vitrine",
-  },
-  {
-    href: "/admin/dashboard/plateforme",
-    label: "Plateforme",
-    description: "Modules transverses",
-    group: "vitrine",
-    mark: "PL",
-    permission: "vitrine",
+    menu: false,
   },
   {
     href: "/admin/dashboard/residences",
@@ -366,14 +284,6 @@ export const ADMIN_NAV: AdminNavItem[] = [
     group: "activites",
     mark: "ÉV",
     permission: "operations",
-  },
-  {
-    href: "/admin/dashboard/travaux",
-    label: "Travaux",
-    description: "Portfolio vitrine",
-    group: "activites",
-    mark: "TR",
-    permission: "vitrine",
   },
   {
     href: "/admin/dashboard/boutique",
@@ -431,6 +341,146 @@ export const ADMIN_NAV: AdminNavItem[] = [
     mark: "CO",
     permission: "operations",
   },
+  {
+    href: "/admin/dashboard/parametres",
+    label: "Paramètres",
+    description: "Contenu & fonctionnalités",
+    group: "parametres",
+    mark: "PR",
+    permission: "dashboard",
+    menu: false,
+  },
+  {
+    href: "/admin/dashboard/recherche",
+    label: "Recherche",
+    description: "Moteur multi-critères",
+    group: "outils",
+    mark: "RE",
+    permission: "search",
+    menu: false,
+  },
+  {
+    href: "/admin/dashboard/notifications",
+    label: "Notifications",
+    description: "Email, WhatsApp, SMS",
+    group: "outils",
+    mark: "NO",
+    permission: "notifications",
+    menu: false,
+  },
+  {
+    href: "/admin/dashboard/utilisateurs",
+    label: "Utilisateurs",
+    description: "Profils & droits d’accès",
+    group: "transverse",
+    mark: "UT",
+    permission: "users",
+  },
+  {
+    href: "/admin/dashboard/sauvegardes",
+    label: "Sauvegardes",
+    description: "Snapshots automatiques",
+    group: "outils",
+    mark: "SA",
+    permission: "backup",
+    menu: false,
+  },
+  {
+    href: "/admin/dashboard/hero",
+    label: "Hero",
+    description: "Titre, CTA, marque",
+    group: "settings",
+    mark: "HE",
+    permission: "vitrine",
+    menu: false,
+  },
+  {
+    href: "/admin/dashboard/categories",
+    label: "Catégories",
+    description: "Types de logements",
+    group: "settings",
+    mark: "CA",
+    permission: "vitrine",
+    menu: false,
+  },
+  {
+    href: "/admin/dashboard/stats",
+    label: "Bandeau stats",
+    description: "Indicateurs confiance",
+    group: "settings",
+    mark: "ST",
+    permission: "vitrine",
+    menu: false,
+  },
+  {
+    href: "/admin/dashboard/poles",
+    label: "Pôles",
+    description: "Quatre activités",
+    group: "settings",
+    mark: "PÔ",
+    permission: "vitrine",
+    menu: false,
+  },
+  {
+    href: "/admin/dashboard/blog",
+    label: "Blog",
+    description: "Articles",
+    group: "settings",
+    mark: "BL",
+    permission: "vitrine",
+    menu: false,
+  },
+  {
+    href: "/admin/dashboard/temoignages",
+    label: "Témoignages",
+    description: "Avis clients",
+    group: "settings",
+    mark: "TÉ",
+    permission: "vitrine",
+    menu: false,
+  },
+  {
+    href: "/admin/dashboard/plateforme",
+    label: "Plateforme",
+    description: "Modules transverses",
+    group: "settings",
+    mark: "PL",
+    permission: "vitrine",
+    menu: false,
+  },
+  {
+    href: "/admin/dashboard/travaux",
+    label: "Travaux",
+    description: "Portfolio vitrine",
+    group: "settings",
+    mark: "TR",
+    permission: "vitrine",
+    menu: false,
+  },
 ];
+
+function allowedSet(permissions: ReadonlySet<string> | string[]) {
+  return permissions instanceof Set ? permissions : new Set(permissions);
+}
+
+/** Contenu vitrine (éditable via Paramètres). */
+export function getAdminSettingsModules(
+  permissions: ReadonlySet<string> | string[],
+) {
+  const allowed = allowedSet(permissions);
+  return ADMIN_NAV.filter(
+    (item) => item.group === "settings" && allowed.has(item.permission),
+  );
+}
+
+/** Fonctionnalités transverses (pas des modules métier). */
+export function getAdminOutilsModules(
+  permissions: ReadonlySet<string> | string[],
+) {
+  const allowed = allowedSet(permissions);
+  return ADMIN_NAV.filter(
+    (item) => item.group === "outils" && allowed.has(item.permission),
+  );
+}
 
 export type { BlogPost, BlogCategory, Testimonial, RecentWork, WorkPole, Activity };
