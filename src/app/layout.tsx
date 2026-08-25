@@ -14,10 +14,26 @@ const figtree = Figtree({
   weight: ["400", "500", "600", "700", "800"],
 });
 
+function siteUrl(): URL {
+  const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (raw) {
+    try {
+      return new URL(raw);
+    } catch {
+      /* fall through */
+    }
+  }
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return new URL(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
+  }
+  if (process.env.VERCEL_URL) {
+    return new URL(`https://${process.env.VERCEL_URL}`);
+  }
+  return new URL("http://localhost:3000");
+}
+
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
-  ),
+  metadataBase: siteUrl(),
   title: "FEBiS — Résidences, BTP, Événementiel & Boutique",
   description:
     "Plateforme digitale FEBiS en Côte d'Ivoire : résidences meublées, BTP, événementiel et boutique — gestion unifiée.",
