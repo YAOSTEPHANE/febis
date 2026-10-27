@@ -252,7 +252,7 @@ export function FacturationAdminClient() {
           type="button"
           onClick={() => void generateReport()}
           disabled={saving}
-          className="rounded-full border border-febis-ink/15 px-4 py-2 text-sm font-bold"
+          className="admin-btn-ghost"
         >
           Rapport finance PDF
         </button>
@@ -509,7 +509,7 @@ export function FacturationAdminClient() {
                             docType || defaultDocType,
                           );
                         }}
-                        className="rounded-full border border-febis-ink/15 px-3 py-2 text-xs font-bold"
+                        className="admin-action-btn"
                       >
                         {btnLabel}
                       </button>

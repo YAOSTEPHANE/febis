@@ -132,15 +132,15 @@ export function AdminNotificationBell() {
         }
         title="Notifications"
         className={cn(
-          "relative flex h-9 w-9 items-center justify-center rounded-full border transition",
+          "relative flex h-7 w-7 items-center justify-center rounded-full border transition",
           open
-            ? "border-febis-red/30 bg-febis-red/5 text-febis-red"
+            ? "border-febis-red/30 bg-febis-red/5 text-febis-red shadow-[0_8px_20px_rgba(160,16,24,0.12)]"
             : "border-febis-ink/10 bg-white/90 text-febis-ink/70 hover:border-febis-ink/20 hover:text-febis-ink",
         )}
       >
-        <BellIcon className="h-4.5 w-4.5" />
+        <BellIcon className="h-3.5 w-3.5" />
         {unseen > 0 ? (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-febis-red px-1 text-[9px] font-extrabold text-white">
+          <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-febis-red px-1 text-[8px] font-extrabold text-white">
             {unseen > 9 ? "9+" : unseen}
           </span>
         ) : null}
@@ -149,7 +149,7 @@ export function AdminNotificationBell() {
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 z-50 mt-2 w-[min(100vw-2rem,22rem)] overflow-hidden rounded-xl border border-febis-ink/10 bg-white shadow-[0_18px_40px_rgba(26,18,16,0.12)]"
+          className="absolute right-0 z-50 mt-2 w-[min(100vw-2rem,22rem)] overflow-hidden rounded-2xl border border-febis-ink/10 bg-white/97 shadow-[0_22px_50px_rgba(26,18,16,0.14)] backdrop-blur-xl"
         >
           <div className="flex items-center justify-between border-b border-febis-ink/8 px-3.5 py-3">
             <p className="text-sm font-semibold text-febis-ink">

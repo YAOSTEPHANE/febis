@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/mongodb";
 import { ACTIVITIES } from "@/lib/types";
 import { touchClient } from "@/lib/crm";
+import { guardPublicWrite } from "@/lib/public-write-guard";
 
 type ContactBody = {
   name?: unknown;
@@ -17,6 +18,9 @@ function asTrimmedString(value: unknown): string {
 }
 
 export async function POST(request: NextRequest) {
+  const guarded = guardPublicWrite(request, "contact");
+  if (!guarded.ok) return guarded.response;
+
   let body: ContactBody;
 
   try {

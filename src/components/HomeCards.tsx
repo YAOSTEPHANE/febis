@@ -19,7 +19,7 @@ const cards = [
     description:
       "De la prospection au suivi d’avancement : devis, contrats et livraison finale.",
     image: "/images/pole-btp.jpg",
-    href: "/#travaux",
+    href: "/btp",
     cta: "Voir les chantiers",
     accent: "from-febis-orange to-febis-amber",
   },

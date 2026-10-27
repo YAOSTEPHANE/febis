@@ -20,7 +20,7 @@ export function Contact() {
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setStatus("loading");
-    setMessage("");
+    setMessage("Envoi en cours…");
 
     const form = event.currentTarget;
     const data = new FormData(form);
@@ -59,41 +59,46 @@ export function Contact() {
   }
 
   return (
-    <section id="contact" className="relative overflow-hidden pt-8 pb-14 md:pt-10 md:pb-20">
+    <section id="contact" className="section-pad relative overflow-hidden pb-[calc(var(--section-y)+env(safe-area-inset-bottom,0px))]">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-febis-mist/80 to-transparent" />
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-5 lg:px-8">
-        <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10">
+      <div className="relative mx-auto max-w-7xl px-4 xs:px-5 sm:px-6 lg:px-8">
+        <div className="grid gap-8 md:gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:gap-12">
           <Reveal>
             <p className="mb-2 text-sm font-bold uppercase tracking-[0.22em] text-febis-red">
               Contact
             </p>
             <h2 className="font-display text-[1.7rem] font-extrabold tracking-tight text-febis-ink sm:text-3xl md:text-4xl">
-              Parlons de votre{" "}
-              <span className="text-gold-sheen">besoin FEBiS</span>.
+              Une porte d&apos;entrée{" "}
+              <span className="text-gold-sheen">unique</span>
             </h2>
             <p className="mt-3 text-base leading-relaxed text-febis-ink/65">
               Réservation, chantier, location événementielle ou boutique —
-              une seule porte d&apos;entrée.
+              répondez-nous en quelques champs.
             </p>
 
-            <div className="mt-6 space-y-4 text-sm font-semibold text-febis-ink/80">
-              <p>
-                <span className="text-febis-red">Pays</span> — Côte d&apos;Ivoire
-              </p>
-              <p>
-                <span className="text-febis-red">Email</span> — contact@febis.ci
-              </p>
-              <p>
-                <span className="text-febis-red">Réponse</span> — sous 24 à 48h
-              </p>
+            <div className="mt-8 space-y-3">
+              {[
+                ["Pays", "Côte d'Ivoire"],
+                ["Email", "contact@febis.ci"],
+                ["Délai", "24–48 h"],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="glass-panel flex items-center justify-between px-4 py-3"
+                >
+                  <span className="text-xs font-bold uppercase tracking-[0.16em] text-febis-red">
+                    {label}
+                  </span>
+                  <span className="text-sm font-semibold text-febis-ink/80">
+                    {value}
+                  </span>
+                </div>
+              ))}
             </div>
           </Reveal>
 
           <Reveal delay={0.1}>
-            <form
-              onSubmit={onSubmit}
-              className="relative overflow-hidden rounded-[1.25rem] border border-febis-ink/8 bg-white/70 p-4 shadow-[0_30px_80px_rgba(160,16,24,0.08)] backdrop-blur-xl sm:rounded-[1.5rem] sm:p-6 md:p-8"
-            >
+            <form onSubmit={onSubmit} className="glass-panel relative p-4 sm:p-6 md:p-8">
               <div
                 className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-febis-orange/20 blur-2xl"
                 aria-hidden
@@ -134,39 +139,35 @@ export function Contact() {
                   />
                 </label>
                 <label className="block text-sm font-semibold text-febis-ink/80">
-                  Entreprise
-                  <input
-                    name="company"
-                    autoComplete="organization"
+                  Activité
+                  <select
+                    name="activity"
                     className="field-premium mt-2"
-                    placeholder="Optionnel"
-                  />
+                    defaultValue="general"
+                  >
+                    {activities.map((a) => (
+                      <option key={a.value} value={a.value}>
+                        {a.label}
+                      </option>
+                    ))}
+                  </select>
                 </label>
               </div>
 
-              <label className="mt-4 block text-sm font-semibold text-febis-ink/80">
-                Activité concernée
-                <select name="activity" className="field-premium mt-2" defaultValue="general">
-                  {activities.map((a) => (
-                    <option key={a.value} value={a.value}>
-                      {a.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <input type="hidden" name="company" value="" />
 
               <label className="mt-4 block text-sm font-semibold text-febis-ink/80">
                 Message
                 <textarea
                   required
                   name="message"
-                  rows={5}
+                  rows={4}
                   className="field-premium mt-2 resize-y"
                   placeholder="Décrivez votre besoin…"
                 />
               </label>
 
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+              <div className="mt-6 flex flex-col gap-3">
                 <button
                   type="submit"
                   disabled={status === "loading"}
@@ -174,18 +175,22 @@ export function Contact() {
                 >
                   {status === "loading" ? "Envoi…" : "Envoyer le message"}
                 </button>
-                {message && (
+                {message ? (
                   <p
                     className={
                       status === "success"
-                        ? "text-sm font-semibold text-emerald-700"
-                        : "text-sm font-semibold text-febis-red"
+                        ? "status-banner is-success"
+                        : status === "loading"
+                          ? "status-banner is-loading"
+                          : status === "error"
+                            ? "status-banner is-error"
+                            : "text-sm text-febis-ink/60"
                     }
                     role="status"
                   >
                     {message}
                   </p>
-                )}
+                ) : null}
               </div>
             </form>
           </Reveal>

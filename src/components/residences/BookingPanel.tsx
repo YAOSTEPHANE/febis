@@ -130,27 +130,79 @@ export function BookingPanel({
     const data = new FormData(form);
 
     try {
+      const channel = String(data.get("paymentChannel") || "") || null;
+      const guestName = String(data.get("guestName") || "");
+      const guestEmail = String(data.get("guestEmail") || "");
+      const guestPhone = String(data.get("guestPhone") || "");
       const res = await fetch("/api/reservations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           lodgingSlug: lodging.slug,
-          guestName: data.get("guestName"),
-          guestEmail: data.get("guestEmail"),
-          guestPhone: data.get("guestPhone"),
+          guestName,
+          guestEmail,
+          guestPhone,
           guests: Number(data.get("guests") || 1),
           checkIn,
           checkOut,
           message: data.get("message"),
-          paymentChannel: data.get("paymentChannel") || null,
+          paymentChannel: channel,
         }),
       });
-      const payload = (await res.json()) as { error?: string };
+      const payload = (await res.json()) as {
+        error?: string;
+        reservation?: {
+          id: string;
+          depositAmount: number;
+          persisted?: boolean;
+        };
+      };
       if (!res.ok) throw new Error(payload.error ?? "Échec de la demande");
+
+      let paymentNote = "";
+      if (
+        payload.reservation?.id &&
+        payload.reservation.persisted !== false &&
+        channel &&
+        payload.reservation.depositAmount > 0
+      ) {
+        try {
+          const payRes = await fetch("/api/payments/initiate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sourceType: "reservation",
+              sourceId: payload.reservation.id,
+              amount: payload.reservation.depositAmount,
+              channel,
+              title: `Acompte réservation · ${lodging.title}`,
+              clientName: guestName,
+              clientEmail: guestEmail,
+              clientPhone: guestPhone,
+            }),
+          });
+          const payJson = (await payRes.json()) as {
+            error?: string;
+            intent?: { reference: string; instructions?: string; merchantPhone?: string };
+          };
+          if (payRes.ok && payJson.intent) {
+            paymentNote = ` Intent paiement ${payJson.intent.reference} créé — ${
+              payJson.intent.instructions ||
+              "suivez les instructions Mobile Money / attente confirmation FEBiS."
+            }${
+              payJson.intent.merchantPhone
+                ? ` Marchand : ${payJson.intent.merchantPhone}.`
+                : ""
+            }`;
+          }
+        } catch {
+          /* la demande reste valide même si l’intent échoue */
+        }
+      }
 
       setStatus("success");
       setMessage(
-        "Demande enregistrée. L’équipe FEBiS confirmera la réservation puis l’acompte.",
+        `Demande enregistrée.${paymentNote || " L’équipe FEBiS confirmera la réservation puis l’acompte."}`,
       );
       form.reset();
       setCheckIn(null);

@@ -17,12 +17,20 @@ export async function GET(_request: NextRequest, context: Ctx) {
     return NextResponse.json({ error: "Document introuvable" }, { status: 404 });
   }
 
-  const bytes = await buildBillingPdf(doc);
-  return new NextResponse(Buffer.from(bytes), {
-    status: 200,
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${doc.number}.pdf"`,
-    },
-  });
+  try {
+    const bytes = await buildBillingPdf(doc);
+    return new NextResponse(Buffer.from(bytes), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${doc.number}.pdf"`,
+      },
+    });
+  } catch (error) {
+    console.error("[facturation/pdf]", error);
+    return NextResponse.json(
+      { error: "Impossible de générer le PDF" },
+      { status: 500 },
+    );
+  }
 }

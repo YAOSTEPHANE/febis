@@ -338,7 +338,7 @@ export function BoutiqueProductDetail() {
           <Link
             href={`/boutique/${product.slug}`}
             target="_blank"
-            className="rounded-full border border-febis-ink/15 px-4 py-2 text-sm font-bold text-febis-ink/70"
+            className="admin-btn-ghost"
           >
             Voir en boutique ↗
           </Link>

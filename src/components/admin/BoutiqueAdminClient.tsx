@@ -767,7 +767,7 @@ export function BoutiqueAdminClient() {
                     <button
                       type="button"
                       onClick={closeForm}
-                      className="rounded-full border border-febis-ink/15 px-4 py-2 text-sm font-bold text-febis-ink/60"
+                      className="admin-btn-ghost"
                     >
                       Annuler
                     </button>
@@ -858,14 +858,14 @@ export function BoutiqueAdminClient() {
                           <button
                             type="button"
                             onClick={() => openEdit(product)}
-                            className="rounded-full border border-febis-ink/15 px-3 py-1.5 text-xs font-bold text-febis-ink/75 hover:border-febis-red/30 hover:text-febis-red"
+                            className="admin-action-btn text-febis-ink/75 hover:border-febis-red/30 hover:text-febis-red"
                           >
                             Modifier
                           </button>
                           <button
                             type="button"
                             onClick={() => void onDelete(product)}
-                            className="rounded-full border border-febis-red/25 px-3 py-1.5 text-xs font-bold text-febis-red"
+                            className="admin-action-btn is-danger"
                           >
                             Supprimer
                           </button>
@@ -919,14 +919,14 @@ export function BoutiqueAdminClient() {
                     <button
                       type="button"
                       onClick={() => openEdit(product)}
-                      className="rounded-full border border-febis-ink/15 px-3 py-1.5 text-xs font-bold"
+                      className="admin-action-btn"
                     >
                       Modifier
                     </button>
                     <button
                       type="button"
                       onClick={() => void onDelete(product)}
-                      className="rounded-full border border-febis-red/25 px-3 py-1.5 text-xs font-bold text-febis-red"
+                      className="admin-action-btn is-danger"
                     >
                       Supprimer
                     </button>
@@ -1055,7 +1055,7 @@ export function BoutiqueAdminClient() {
                       <button
                         type="button"
                         onClick={() => openOrder(order)}
-                        className="rounded-full border border-febis-ink/15 px-3 py-1.5 text-xs font-bold"
+                        className="admin-action-btn"
                       >
                         Modifier
                       </button>

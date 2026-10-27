@@ -106,7 +106,7 @@ async function dispatchChannel(
     return {
       ok: false,
       simulated: false,
-      error: `Fournisseur ${channel} non configuré (cadrage CDC §4.10).`,
+      error: `Fournisseur ${channel} non configuré.`,
     };
   } catch (error) {
     return {

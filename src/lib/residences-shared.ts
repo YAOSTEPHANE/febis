@@ -20,6 +20,21 @@ export {
   RESERVATION_STEPS,
 };
 
+export type InventoryChecklistItem = {
+  id: string;
+  label: string;
+  ok: boolean;
+  note: string;
+};
+
+export type CancellationRefund = {
+  refundPercent: number;
+  refundAmount: number;
+  adminFee: number;
+  hoursBeforeCheckIn: number;
+  policyLabel: string;
+};
+
 export type SerializedReservation = {
   id: string;
   lodgingId: string;
@@ -39,10 +54,66 @@ export type SerializedReservation = {
   message: string;
   paymentChannel: PaymentChannel | null;
   inventoryNotes: string;
+  inventoryChecklist: InventoryChecklistItem[];
   cancelled: boolean;
+  cancellationRefund: CancellationRefund | null;
   createdAt: string;
   updatedAt: string;
 };
+
+/** Politique CDC figée : ≥48h 100 %, 24–48h 50 %, &lt;24h 0 % ; frais 5 000 si partiel. */
+export const CANCELLATION_ADMIN_FEE = 5000;
+
+export function computeCancellationRefund(input: {
+  checkIn: string;
+  depositAmount: number;
+  now?: Date;
+}): CancellationRefund {
+  const now = input.now ?? new Date();
+  const checkInMs = new Date(`${input.checkIn}T12:00:00`).getTime();
+  const hoursBeforeCheckIn = Math.max(
+    0,
+    (checkInMs - now.getTime()) / (1000 * 60 * 60),
+  );
+
+  let refundPercent = 0;
+  let policyLabel = "Moins de 24 h — aucun remboursement";
+  if (hoursBeforeCheckIn >= 48) {
+    refundPercent = 100;
+    policyLabel = "≥ 48 h — remboursement 100 % de l’acompte";
+  } else if (hoursBeforeCheckIn >= 24) {
+    refundPercent = 50;
+    policyLabel = "24–48 h — remboursement 50 % de l’acompte";
+  }
+
+  const raw = Math.round((input.depositAmount * refundPercent) / 100);
+  const adminFee =
+    refundPercent > 0 && refundPercent < 100 ? CANCELLATION_ADMIN_FEE : 0;
+  const refundAmount = Math.max(0, raw - adminFee);
+
+  return {
+    refundPercent,
+    refundAmount,
+    adminFee,
+    hoursBeforeCheckIn: Math.round(hoursBeforeCheckIn * 10) / 10,
+    policyLabel,
+  };
+}
+
+export const DEFAULT_INVENTORY_CHECKLIST: InventoryChecklistItem[] = [
+  { id: "cles", label: "Clés / badges", ok: true, note: "" },
+  { id: "salon", label: "Salon / mobilier", ok: true, note: "" },
+  { id: "cuisine", label: "Cuisine / électroménager", ok: true, note: "" },
+  { id: "chambres", label: "Chambres / literie", ok: true, note: "" },
+  { id: "sdb", label: "Salle de bain", ok: true, note: "" },
+  { id: "electromenager", label: "TV / Wi-Fi / clim", ok: true, note: "" },
+];
+
+export const CANCELLATION_POLICY_PUBLIC = [
+  "Annulation ≥ 48 h avant l’arrivée : remboursement intégral de l’acompte.",
+  "Annulation entre 24 h et 48 h : remboursement de 50 % de l’acompte (frais admin 5 000 FCFA).",
+  "Annulation moins de 24 h avant l’arrivée : aucun remboursement.",
+];
 
 export function statusLabel(status: LodgingStatus | "reserve" | string): string {
   switch (status) {

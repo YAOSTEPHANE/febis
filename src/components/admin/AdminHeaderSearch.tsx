@@ -176,12 +176,12 @@ export function AdminHeaderSearch() {
     (loading || Boolean(error) || hits.length > 0 || q.trim().length >= 2);
 
   return (
-    <div ref={rootRef} className="relative min-w-0 w-44 sm:w-52 md:w-56">
+    <div ref={rootRef} className="relative min-w-0 w-48 sm:w-56 md:w-64">
       <button
         type="button"
         aria-label="Ouvrir la recherche"
         className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-lg border border-febis-ink/10 bg-white/90 text-febis-ink/55 transition hover:border-febis-red/25 hover:text-febis-red sm:hidden",
+          "flex h-7 w-7 items-center justify-center rounded-full border border-febis-ink/10 bg-white/90 text-febis-ink/55 transition hover:border-febis-red/25 hover:text-febis-red sm:hidden",
           expandedMobile && "border-febis-red/30 text-febis-red",
         )}
         onClick={() => {
@@ -222,9 +222,9 @@ export function AdminHeaderSearch() {
               activeIndex >= 0 ? `${listId}-opt-${activeIndex}` : undefined
             }
             placeholder="Rechercher…"
-            className="h-8 w-full rounded-lg border border-febis-ink/10 bg-white/95 pl-8 pr-12 text-xs font-medium text-febis-ink outline-none transition placeholder:text-febis-ink/35 focus:border-febis-red/35 focus:shadow-[0_0_0_3px_rgba(215,25,32,0.1)]"
+            className="h-7 w-full rounded-full border border-febis-ink/10 bg-white/95 pl-8 pr-11 text-xs font-medium text-febis-ink outline-none transition placeholder:text-febis-ink/35 focus:border-febis-red/35 focus:shadow-[0_0_0_3px_rgba(215,25,32,0.1)]"
           />
-          <span className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-febis-ink/10 bg-febis-smoke/80 px-1 py-px text-[9px] font-bold tracking-wide text-febis-ink/40 sm:inline">
+          <span className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 rounded-md border border-febis-ink/10 bg-febis-smoke/80 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-febis-ink/40 sm:inline">
             ⌘K
           </span>
           {loading ? (
@@ -238,7 +238,7 @@ export function AdminHeaderSearch() {
           <div
             id={listId}
             role="listbox"
-            className="absolute left-0 right-0 z-50 mt-1.5 max-h-[min(70vh,20rem)] overflow-y-auto rounded-lg border border-febis-ink/10 bg-white shadow-[0_18px_40px_rgba(26,18,16,0.12)]"
+            className="absolute left-0 right-0 z-50 mt-2 max-h-[min(70vh,22rem)] overflow-y-auto rounded-2xl border border-febis-ink/10 bg-white/97 shadow-[0_22px_50px_rgba(26,18,16,0.14)] backdrop-blur-xl"
           >
             {error ? (
               <p className="px-3 py-2.5 text-xs font-semibold text-febis-red">

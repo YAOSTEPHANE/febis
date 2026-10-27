@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { listPayments, listUnpaidInvoices, recordPayment } from "@/lib/finance";
+import { listPendingPaymentIntents } from "@/lib/paiements";
 import type { Activity, PaymentChannel, PaymentDirection } from "@/lib/types";
 import {
   ACTIVITIES,
@@ -15,15 +16,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
   const { searchParams } = request.nextUrl;
-  const [payments, unpaid] = await Promise.all([
+  const [payments, unpaid, pendingIntents] = await Promise.all([
     listPayments({
       channel: searchParams.get("channel") ?? undefined,
       activity: searchParams.get("activity") ?? undefined,
       direction: searchParams.get("direction") ?? undefined,
     }),
     listUnpaidInvoices(),
+    listPendingPaymentIntents(40),
   ]);
-  return NextResponse.json({ payments, unpaid });
+  return NextResponse.json({ payments, unpaid, pendingIntents });
 }
 
 export async function POST(request: NextRequest) {

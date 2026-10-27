@@ -15,10 +15,14 @@ import {
   type SerializedPayment,
   type SerializedUnpaid,
 } from "@/lib/finance-shared";
+import type { SerializedPaymentIntent } from "@/lib/paiements-shared";
 
 export function PaiementsAdminClient() {
   const [payments, setPayments] = useState<SerializedPayment[]>([]);
   const [unpaid, setUnpaid] = useState<SerializedUnpaid[]>([]);
+  const [pendingIntents, setPendingIntents] = useState<
+    SerializedPaymentIntent[]
+  >([]);
   const [channel, setChannel] = useState("all");
   const [activity, setActivity] = useState("all");
   const [direction, setDirection] = useState("all");
@@ -37,15 +41,36 @@ export function PaiementsAdminClient() {
       const json = (await res.json()) as {
         payments?: SerializedPayment[];
         unpaid?: SerializedUnpaid[];
+        pendingIntents?: SerializedPaymentIntent[];
         error?: string;
       };
       if (!res.ok) throw new Error(json.error ?? "Erreur");
       setPayments(json.payments ?? []);
       setUnpaid(json.unpaid ?? []);
+      setPendingIntents(json.pendingIntents ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur");
     }
   }, [channel, activity, direction]);
+
+  async function resolveIntent(intentId: string, action: "confirm" | "fail") {
+    setSaving(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/paiements/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ intentId, action }),
+      });
+      const json = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Échec");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -99,7 +124,7 @@ export function PaiementsAdminClient() {
       <div className="mb-5 flex flex-wrap gap-3">
         <Link
           href="/admin/dashboard/finance"
-          className="rounded-full border border-febis-ink/15 px-4 py-2 text-sm font-bold"
+          className="admin-btn-ghost"
         >
           ← Tableau Finance
         </Link>
@@ -113,6 +138,51 @@ export function PaiementsAdminClient() {
         <p className="mb-4 rounded-xl border border-febis-red/20 bg-febis-red/5 px-4 py-3 text-sm font-semibold text-febis-red">
           {error}
         </p>
+      ) : null}
+
+      {pendingIntents.length > 0 ? (
+        <div className="mb-6 admin-panel overflow-hidden">
+          <div className="border-b border-febis-ink/8 px-5 py-3 text-sm font-semibold">
+            Intents en attente ({pendingIntents.length})
+          </div>
+          <div className="divide-y divide-febis-ink/8">
+            {pendingIntents.map((intent) => (
+              <div
+                key={intent.id}
+                className="flex flex-wrap items-start justify-between gap-3 px-5 py-3"
+              >
+                <div>
+                  <p className="font-semibold text-febis-ink">{intent.title}</p>
+                  <p className="text-xs text-febis-ink/50">
+                    {intent.reference} · {intent.sourceType}/{intent.sourceId.slice(0, 8)} ·{" "}
+                    {paymentChannelLabel(intent.channel)} · {formatXof(intent.amount)}
+                  </p>
+                  {intent.clientName ? (
+                    <p className="mt-1 text-xs text-febis-ink/45">{intent.clientName}</p>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => void resolveIntent(intent.id, "confirm")}
+                    className="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-60"
+                  >
+                    Confirmer
+                  </button>
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => void resolveIntent(intent.id, "fail")}
+                    className="rounded-full border border-febis-red/30 px-3 py-1.5 text-xs font-bold text-febis-red disabled:opacity-60"
+                  >
+                    Échec
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       ) : null}
 
       <div className="mb-4 admin-panel admin-panel-premium p-4">

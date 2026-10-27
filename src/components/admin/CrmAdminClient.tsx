@@ -163,7 +163,7 @@ export function CrmAdminClient() {
     <>
       <AdminPageHeader
         title="CRM transversal"
-        description="Base clients unique partagée (CDC §4.6) — historique, factures et projets liés automatiquement."
+        description="Base clients unique partagée — historique, factures et projets liés automatiquement."
         actions={
           <button type="button" onClick={openCreate} className="cta-premium">
             + Nouveau client
@@ -361,7 +361,7 @@ export function CrmAdminClient() {
                       <button
                         type="button"
                         onClick={() => openEdit(client)}
-                        className="rounded-full border border-febis-ink/15 px-3 py-1.5 text-xs font-bold"
+                        className="admin-action-btn"
                       >
                         Modifier
                       </button>

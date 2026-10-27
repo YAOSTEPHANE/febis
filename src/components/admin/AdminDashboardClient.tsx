@@ -99,14 +99,17 @@ export function AdminDashboardShell({
 
   return (
     <div className="admin-rise space-y-7">
-      <section className="admin-command relative px-6 py-7 md:px-8 md:py-8">
+      <section className="admin-command relative px-6 py-7 md:px-8 md:py-9">
         <div className="relative z-10 flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-2xl">
-            <h1 className="font-display text-[clamp(1.75rem,3.5vw,2.6rem)] font-extrabold leading-tight tracking-tight text-white">
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.26em] text-[#f0d78c]/80">
+              Tableau de bord
+            </p>
+            <h1 className="font-display text-[clamp(1.75rem,3.5vw,2.65rem)] font-extrabold leading-tight tracking-tight text-white">
               {greeting},{" "}
               <span className="admin-command-gold">{firstName}</span>
             </h1>
-            <p className="mt-2 max-w-lg text-sm leading-relaxed text-white/60">
+            <p className="mt-2.5 max-w-lg text-sm leading-relaxed text-white/60">
               {roleLabel}
               {generatedAt
                 ? ` · synchronisé ${new Date(generatedAt).toLocaleString("fr-FR", {

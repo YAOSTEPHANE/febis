@@ -89,7 +89,28 @@ export function BoutiqueCartCheckout() {
         error?: string;
       };
       if (!res.ok) throw new Error(json.error ?? "Commande impossible");
-      setOrder(json.order ?? null);
+      const created = json.order ?? null;
+      if (created && paymentChannel && created.totalAmount > 0) {
+        try {
+          await fetch("/api/payments/initiate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sourceType: "boutique",
+              sourceId: created.id,
+              amount: created.totalAmount,
+              channel: paymentChannel,
+              title: `Commande ${created.orderNumber}`,
+              clientName: created.clientName,
+              clientEmail: created.clientEmail,
+              clientPhone: created.clientPhone,
+            }),
+          });
+        } catch {
+          /* commande OK même si intent échoue */
+        }
+      }
+      setOrder(created);
       clear();
       setStep("confirme");
     } catch (err) {

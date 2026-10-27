@@ -351,7 +351,7 @@ export function EvenementielAdminClient() {
     <>
       <AdminPageHeader
         title="Événementiel"
-        description="CDC §4.4 : catalogue, devis, sorties/retours, dommages & pénalités."
+        description="Catalogue, devis, sorties/retours, dommages & pénalités."
       />
 
       {error ? (
@@ -398,10 +398,10 @@ export function EvenementielAdminClient() {
             type="button"
             onClick={() => setTab(id)}
             className={cn(
-              "rounded-full px-4 py-2 text-sm font-bold transition",
+              "rounded-full px-4 py-2 text-sm font-bold leading-snug transition",
               tab === id
-                ? "bg-febis-gold-deep text-white"
-                : "bg-febis-mist text-febis-ink/60",
+                ? "bg-febis-ink text-white ring-2 ring-febis-gold/40"
+                : "bg-febis-mist text-febis-ink/70",
             )}
           >
             {label}
@@ -414,7 +414,7 @@ export function EvenementielAdminClient() {
         ) : null}
         <Link
           href="/evenementiel"
-          className="ml-auto rounded-full border border-febis-ink/15 px-4 py-2 text-sm font-bold"
+          className="admin-btn-ghost ml-auto"
           target="_blank"
         >
           Site public →
@@ -569,14 +569,14 @@ export function EvenementielAdminClient() {
                             <button
                               type="button"
                               onClick={() => openEdit(item)}
-                              className="rounded-full border border-febis-ink/15 px-3 py-1.5 text-xs font-bold"
+                              className="admin-action-btn"
                             >
                               Modifier
                             </button>
                             <button
                               type="button"
                               onClick={() => void onDeleteEquipment(item)}
-                              className="rounded-full border border-febis-red/25 px-3 py-1.5 text-xs font-bold text-febis-red"
+                              className="admin-action-btn is-danger"
                             >
                               Supprimer
                             </button>
@@ -622,14 +622,14 @@ export function EvenementielAdminClient() {
                       <button
                         type="button"
                         onClick={() => openEdit(item)}
-                        className="rounded-full border border-febis-ink/15 px-3 py-1.5 text-xs font-bold"
+                        className="admin-action-btn"
                       >
                         Modifier
                       </button>
                       <button
                         type="button"
                         onClick={() => void onDeleteEquipment(item)}
-                        className="rounded-full border border-febis-red/25 px-3 py-1.5 text-xs font-bold text-febis-red"
+                        className="admin-action-btn is-danger"
                       >
                         Supprimer
                       </button>
@@ -966,7 +966,7 @@ export function EvenementielAdminClient() {
             <button
               type="button"
               onClick={closeForm}
-              className="rounded-full border border-febis-ink/15 px-4 py-2 text-sm font-bold text-febis-ink/60"
+              className="admin-btn-ghost"
             >
               Annuler
             </button>

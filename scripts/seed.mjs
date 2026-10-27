@@ -540,7 +540,7 @@ async function main() {
   await db.collection("testimonials").createIndex({ id: 1 }, { unique: true });
   await db.collection("travaux").createIndex({ id: 1 }, { unique: true });
 
-  // ——— Module RH (CDC §5.1) ———
+  // ——— Module RH ———
   await db.collection("employees").createIndex({ seedKey: 1 }, { unique: true, sparse: true });
   await db.collection("counters").updateOne(
     { _id: "employees" },

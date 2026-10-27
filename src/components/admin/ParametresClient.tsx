@@ -38,7 +38,7 @@ export function SeedHomepagePanel() {
           type="button"
           onClick={() => void seedHomepage()}
           disabled={loading}
-          className="rounded-full border border-febis-ink/15 px-4 py-2 text-sm font-bold disabled:opacity-60"
+          className="admin-btn-ghost disabled:opacity-60"
         >
           {loading ? "Initialisation…" : "Initialiser le contenu par défaut"}
         </button>

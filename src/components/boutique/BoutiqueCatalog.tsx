@@ -36,26 +36,21 @@ export function BoutiqueCatalog({
 
   return (
     <div>
-      <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+      <div className="glass-panel mb-8 flex flex-col gap-4 p-4 sm:p-5 md:flex-row md:items-end md:justify-between">
         <label className="block max-w-md flex-1 text-sm font-semibold text-febis-ink/80">
           Rechercher
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Nom, description…"
-            className="mt-1.5 w-full rounded-xl border border-febis-ink/12 bg-white/80 px-3 py-2.5 text-sm outline-none ring-febis-red/30 focus:ring-2"
+            className="field-premium mt-1.5"
           />
         </label>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => setCategory("all")}
-            className={cn(
-              "rounded-full border px-3 py-1.5 text-xs font-bold uppercase tracking-wide",
-              category === "all"
-                ? "border-febis-red bg-febis-red text-white"
-                : "border-febis-ink/15 bg-white/70 text-febis-ink/70",
-            )}
+            className={cn("filter-chip", category === "all" && "is-active")}
           >
             Tous
           </button>
@@ -64,12 +59,7 @@ export function BoutiqueCatalog({
               key={cat}
               type="button"
               onClick={() => setCategory(cat)}
-              className={cn(
-                "rounded-full border px-3 py-1.5 text-xs font-bold uppercase tracking-wide",
-                category === cat
-                  ? "border-febis-red bg-febis-red text-white"
-                  : "border-febis-ink/15 bg-white/70 text-febis-ink/70",
-              )}
+              className={cn("filter-chip", category === cat && "is-active")}
             >
               {productCategoryLabel(cat)}
             </button>
@@ -78,15 +68,18 @@ export function BoutiqueCatalog({
       </div>
 
       {filtered.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-febis-ink/15 bg-white/50 px-6 py-12 text-center text-febis-ink/55">
+        <p className="glass-panel px-6 py-14 text-center text-febis-ink/55">
           Aucun produit ne correspond à votre recherche.
         </p>
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((product) => (
-            <article key={product.id || product.slug} className="lodging-card group overflow-hidden">
+            <article
+              key={product.id || product.slug}
+              className="lodging-card group overflow-hidden"
+            >
               <Link href={`/boutique/${product.slug}`} className="block">
-                <div className="relative aspect-[4/3] overflow-hidden">
+                <div className="relative aspect-[4/5] overflow-hidden sm:aspect-[4/3]">
                   <Image
                     src={product.photo}
                     alt={product.name}
@@ -94,29 +87,25 @@ export function BoutiqueCatalog({
                     sizes="(max-width: 768px) 100vw, 33vw"
                     className="object-cover transition-transform duration-700 group-hover:scale-105"
                   />
-                  <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-febis-ink">
+                  <div className="absolute inset-0 bg-gradient-to-t from-febis-ink/80 via-transparent to-transparent" />
+                  <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-febis-ink backdrop-blur-sm">
                     {product.stockTotal > 0
                       ? `${product.stockTotal} en stock`
                       : "Rupture"}
                   </span>
-                </div>
-                <div className="p-5">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-febis-orange">
-                    {productCategoryLabel(product.category)}
-                  </p>
-                  <h3 className="mt-1 font-display text-xl font-bold text-febis-ink">
-                    {product.name}
-                  </h3>
-                  <p className="mt-2 line-clamp-2 text-sm text-febis-ink/60">
-                    {product.description}
-                  </p>
-                  <p className="mt-4 font-display text-lg font-extrabold text-febis-red">
-                    dès {formatXof(product.priceFrom)}
-                  </p>
-                  <p className="mt-1 text-xs text-febis-ink/45">
-                    {product.variants.length} variante
-                    {product.variants.length > 1 ? "s" : ""}
-                  </p>
+                  <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-febis-amber">
+                      {productCategoryLabel(product.category)}
+                    </p>
+                    <h3 className="mt-1 font-display text-xl font-bold text-white">
+                      {product.name}
+                    </h3>
+                    <div className="mt-3 inline-flex items-center rounded-full border border-white/20 bg-white/15 px-3 py-1.5 backdrop-blur-md">
+                      <p className="font-display text-sm font-extrabold text-white">
+                        dès {formatXof(product.priceFrom)}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </Link>
             </article>
@@ -133,12 +122,55 @@ export function ProductPurchasePanel({
   product: SerializedProduct;
 }) {
   const { addItem } = useBoutiqueCart();
+  const sizes = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          product.variants
+            .map((v) => v.size)
+            .filter((s): s is string => Boolean(s)),
+        ),
+      ),
+    [product.variants],
+  );
+  const colors = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          product.variants
+            .map((v) => v.color)
+            .filter((c): c is string => Boolean(c)),
+        ),
+      ),
+    [product.variants],
+  );
+
   const available = product.variants.filter((v) => v.stock > 0);
-  const [sku, setSku] = useState(available[0]?.sku ?? product.variants[0]?.sku ?? "");
+  const [size, setSize] = useState(() => available[0]?.size ?? sizes[0] ?? "");
+  const [color, setColor] = useState(() => available[0]?.color ?? colors[0] ?? "");
   const [quantity, setQuantity] = useState(1);
   const [toast, setToast] = useState("");
 
-  const variant = product.variants.find((v) => v.sku === sku) ?? product.variants[0];
+  const matching = useMemo(() => {
+    return (
+      product.variants.find(
+        (v) =>
+          (!size || v.size === size) &&
+          (!color || v.color === color),
+      ) ??
+      product.variants.find((v) => v.size === size) ??
+      product.variants[0]
+    );
+  }, [product.variants, size, color]);
+
+  const variant = matching;
+
+  function stockFor(sizeVal: string, colorVal: string) {
+    return (
+      product.variants.find((v) => v.size === sizeVal && v.color === colorVal)
+        ?.stock ?? 0
+    );
+  }
 
   function onAdd() {
     if (!variant || variant.stock < 1) {
@@ -161,38 +193,111 @@ export function ProductPurchasePanel({
   }
 
   return (
-    <div className="rounded-2xl border border-febis-ink/10 bg-white/80 p-6 shadow-sm">
+    <div className="glass-panel sticky top-24 p-5 sm:p-6 md:p-7">
       <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-febis-orange">
         {productCategoryLabel(product.category)}
       </p>
       <h1 className="mt-2 font-display text-3xl font-extrabold text-febis-ink md:text-4xl">
         {product.name}
       </h1>
-      <p className="mt-3 text-febis-ink/65">{product.description}</p>
-      <p className="mt-5 font-display text-2xl font-extrabold text-febis-red">
+      <p className="mt-3 text-sm leading-relaxed text-febis-ink/65 sm:text-base">
+        {product.description}
+      </p>
+      <p className="mt-5 font-display text-2xl font-extrabold text-febis-red md:text-3xl">
         {variant ? formatXof(variant.price) : formatXof(product.priceFrom)}
       </p>
+      {variant ? (
+        <p className="mt-1 text-xs font-semibold text-febis-ink/45">
+          SKU {variant.sku} · {variant.stock > 0 ? `${variant.stock} dispo` : "Rupture"}
+        </p>
+      ) : null}
 
-      <label className="mt-6 block text-sm font-semibold text-febis-ink/80">
-        Variante
-        <select
-          value={sku}
-          onChange={(e) => {
-            setSku(e.target.value);
-            setQuantity(1);
-          }}
-          className="mt-1.5 w-full rounded-xl border border-febis-ink/12 bg-white px-3 py-2.5 text-sm outline-none ring-febis-red/30 focus:ring-2"
-        >
-          {product.variants.map((v) => (
-            <option key={v.sku} value={v.sku} disabled={v.stock < 1}>
-              {variantLabel(v)} · {formatXof(v.price)}
-              {v.stock < 1 ? " (rupture)" : ` · ${v.stock} dispo`}
-            </option>
-          ))}
-        </select>
-      </label>
+      {colors.length > 0 ? (
+        <div className="mt-6">
+          <p className="text-sm font-semibold text-febis-ink/80">Couleur</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {colors.map((c) => {
+              const ok = product.variants.some(
+                (v) => v.color === c && (!size || v.size === size) && v.stock > 0,
+              );
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  disabled={!ok && size !== ""}
+                  onClick={() => {
+                    setColor(c);
+                    setQuantity(1);
+                  }}
+                  className={cn(
+                    "filter-chip",
+                    color === c && "is-active",
+                    !ok && "opacity-40",
+                  )}
+                >
+                  {c}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
-      <label className="mt-4 block text-sm font-semibold text-febis-ink/80">
+      {sizes.length > 0 ? (
+        <div className="mt-5">
+          <p className="text-sm font-semibold text-febis-ink/80">Taille</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {sizes.map((s) => {
+              const stock = color ? stockFor(s, color) : product.variants.find((v) => v.size === s)?.stock ?? 0;
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  disabled={stock < 1}
+                  onClick={() => {
+                    setSize(s);
+                    setQuantity(1);
+                  }}
+                  className={cn(
+                    "inline-flex min-w-11 items-center justify-center rounded-xl border px-3 py-2.5 text-sm font-bold transition focus-ring-premium",
+                    size === s
+                      ? "border-febis-red bg-febis-red text-white"
+                      : "border-febis-ink/12 bg-white/80 text-febis-ink hover:border-febis-red/40",
+                    stock < 1 && "cursor-not-allowed opacity-35",
+                  )}
+                >
+                  {s}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <label className="mt-6 block text-sm font-semibold text-febis-ink/80">
+          Variante
+          <select
+            value={variant?.sku ?? ""}
+            onChange={(e) => {
+              const next = product.variants.find((v) => v.sku === e.target.value);
+              if (next) {
+                setSize(next.size ?? "");
+                setColor(next.color ?? "");
+                setQuantity(1);
+              }
+            }}
+            className="field-premium mt-1.5"
+          >
+            {product.variants.map((v) => (
+              <option key={v.sku} value={v.sku} disabled={v.stock < 1}>
+                {variantLabel(v)} · {formatXof(v.price)}
+                {v.stock < 1 ? " (rupture)" : ` · ${v.stock} dispo`}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      <label className="mt-5 block text-sm font-semibold text-febis-ink/80">
         Quantité
         <input
           type="number"
@@ -210,11 +315,11 @@ export function ProductPurchasePanel({
               ),
             )
           }
-          className="mt-1.5 w-28 rounded-xl border border-febis-ink/12 bg-white px-3 py-2.5 text-sm outline-none ring-febis-red/30 focus:ring-2"
+          className="field-premium mt-1.5 w-28"
         />
       </label>
 
-      <div className="mt-6 flex flex-wrap gap-3">
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <button
           type="button"
           onClick={onAdd}
@@ -225,13 +330,21 @@ export function ProductPurchasePanel({
         </button>
         <Link
           href="/boutique/panier"
-          className="inline-flex items-center rounded-full border border-febis-ink/15 bg-white px-5 py-2.5 text-sm font-bold text-febis-ink hover:border-febis-red/40"
+          className="inline-flex items-center justify-center rounded-full border border-febis-ink/15 bg-white/80 px-5 py-2.5 text-sm font-bold text-febis-ink transition hover:border-febis-red/40 focus-ring-premium"
         >
           Voir le panier
         </Link>
       </div>
       {toast ? (
-        <p className="mt-3 text-sm font-semibold text-febis-red">{toast}</p>
+        <p
+          className={cn(
+            "mt-3 status-banner",
+            toast.includes("rupture") ? "is-error" : "is-success",
+          )}
+          role="status"
+        >
+          {toast}
+        </p>
       ) : null}
     </div>
   );

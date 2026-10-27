@@ -47,6 +47,20 @@ export async function PATCH(request: NextRequest, context: Ctx) {
   if (typeof body.inventoryNotes === "string") {
     patch.inventoryNotes = body.inventoryNotes;
   }
+  if (Array.isArray(body.inventoryChecklist)) {
+    patch.inventoryChecklist = body.inventoryChecklist
+      .filter(
+        (item): item is Record<string, unknown> =>
+          Boolean(item) && typeof item === "object",
+      )
+      .map((item) => ({
+        id: String(item.id ?? ""),
+        label: String(item.label ?? ""),
+        ok: Boolean(item.ok),
+        note: typeof item.note === "string" ? item.note : "",
+      }))
+      .filter((item) => item.id && item.label);
+  }
   if (typeof body.message === "string") {
     patch.message = body.message;
   }

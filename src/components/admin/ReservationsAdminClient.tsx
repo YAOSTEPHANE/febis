@@ -358,7 +358,7 @@ export function ReservationsAdminClient() {
                     <button
                       type="button"
                       onClick={() => openEdit(r)}
-                      className="rounded-full border border-febis-ink/15 px-3 py-1.5 text-xs font-bold"
+                      className="admin-action-btn"
                     >
                       Modifier
                     </button>
@@ -372,7 +372,7 @@ export function ReservationsAdminClient() {
                       <button
                         type="button"
                         onClick={() => void onCancelReservation(r)}
-                        className="rounded-full border border-febis-red/25 px-3 py-1.5 text-xs font-bold text-febis-red"
+                        className="admin-action-btn is-danger"
                       >
                         Annuler
                       </button>

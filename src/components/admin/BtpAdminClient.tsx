@@ -208,7 +208,7 @@ export function BtpAdminClient() {
     <>
       <AdminPageHeader
         title="BTP — Chantiers"
-        description="CDC §4.3 : prospect → devis → contrat → chantier → avancement → livraison."
+        description="Prospect → devis → contrat → chantier → avancement → livraison."
         actions={
           <button type="button" onClick={openCreate} className="cta-premium">
             + Nouveau chantier
@@ -317,7 +317,7 @@ export function BtpAdminClient() {
                     <button
                       type="button"
                       onClick={() => openEdit(p)}
-                      className="rounded-full border border-febis-ink/15 px-3 py-1.5 text-xs font-bold"
+                      className="admin-action-btn"
                     >
                       Modifier
                     </button>
@@ -331,7 +331,7 @@ export function BtpAdminClient() {
                       <button
                         type="button"
                         onClick={() => void onCancelProject(p)}
-                        className="rounded-full border border-febis-red/25 px-3 py-1.5 text-xs font-bold text-febis-red"
+                        className="admin-action-btn is-danger"
                       >
                         Annuler
                       </button>

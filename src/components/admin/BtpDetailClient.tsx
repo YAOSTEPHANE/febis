@@ -11,6 +11,11 @@ import {
   formatXof,
   type SerializedBtpProject,
 } from "@/lib/btp-shared";
+import {
+  btpQuoteCategoryLabel,
+  btpQuoteUnitLabel,
+  finishLevelLabel,
+} from "@/lib/btp-quote-catalog";
 import { cn } from "@/lib/cn";
 
 export function BtpDetailClient() {
@@ -114,13 +119,13 @@ export function BtpDetailClient() {
       />
 
       <div className="mb-5 flex flex-wrap gap-3">
-        <Link href="/admin/dashboard/btp" className="rounded-full border border-febis-ink/15 px-4 py-2 text-sm font-bold">
+        <Link href="/admin/dashboard/btp" className="admin-btn-ghost">
           ← Liste BTP
         </Link>
         {project.crmClientId ? (
           <Link
             href={`/admin/dashboard/crm/${project.crmClientId}`}
-            className="rounded-full border border-febis-ink/15 px-4 py-2 text-sm font-bold"
+            className="admin-btn-ghost"
           >
             Fiche CRM →
           </Link>
@@ -151,11 +156,12 @@ export function BtpDetailClient() {
               disabled={saving || project.cancelled}
               onClick={() => void patch({ step: s })}
               className={cn(
-                "rounded-full px-3 py-1.5 text-xs font-bold transition",
-                idx <= currentIdx
+                "rounded-full px-3.5 py-1.5 text-xs font-bold leading-snug transition",
+                idx < currentIdx
                   ? "bg-febis-gold-deep text-white"
-                  : "bg-febis-mist text-febis-ink/55",
-                s === project.step && "ring-2 ring-febis-ink/20",
+                  : s === project.step
+                    ? "bg-febis-ink text-white ring-2 ring-febis-gold/50"
+                    : "bg-febis-mist text-febis-ink/70",
               )}
             >
               {btpStepLabel(s)}
@@ -204,13 +210,72 @@ export function BtpDetailClient() {
               type="button"
               disabled={saving}
               onClick={() => void patch({ cancelled: false })}
-              className="rounded-full border border-febis-ink/15 px-4 py-2 text-sm font-bold disabled:opacity-60"
+              className="admin-btn-ghost disabled:opacity-60"
             >
               Réactiver
             </button>
           )}
         </div>
       </div>
+
+      {project.houseSpec || project.quoteLines.length > 0 ? (
+        <div className="mb-6 admin-panel admin-panel-premium p-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-febis-gold-deep">
+            Devis construction maison
+          </p>
+          {project.houseSpec ? (
+            <p className="mt-2 text-sm text-febis-ink/70">
+              {project.houseSpec.surfaceM2} m² · {project.houseSpec.floors}{" "}
+              niveau(x) · {project.houseSpec.rooms} pièce(s) · finition{" "}
+              {finishLevelLabel(project.houseSpec.finishLevel)}
+              {project.houseSpec.includeExterior
+                ? " · extérieurs inclus"
+                : ""}
+            </p>
+          ) : null}
+          {project.quoteLines.length > 0 ? (
+            <div className="mt-4 overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-febis-ink/10 text-[11px] uppercase tracking-wider text-febis-ink/45">
+                    <th className="py-2 pr-3 font-bold">Code</th>
+                    <th className="py-2 pr-3 font-bold">Poste</th>
+                    <th className="py-2 pr-3 font-bold">Lot</th>
+                    <th className="py-2 pr-3 font-bold">Qté</th>
+                    <th className="py-2 pr-3 font-bold">P.U.</th>
+                    <th className="py-2 font-bold">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {project.quoteLines.map((line) => (
+                    <tr
+                      key={`${line.code}-${line.label}`}
+                      className="border-b border-febis-ink/6"
+                    >
+                      <td className="py-2 pr-3 font-mono text-xs">{line.code}</td>
+                      <td className="py-2 pr-3 font-semibold text-febis-ink">
+                        {line.label}
+                      </td>
+                      <td className="py-2 pr-3 text-febis-ink/55">
+                        {btpQuoteCategoryLabel(line.category)}
+                      </td>
+                      <td className="py-2 pr-3 tabular-nums">
+                        {line.quantity} {btpQuoteUnitLabel(line.unit)}
+                      </td>
+                      <td className="py-2 pr-3 tabular-nums">
+                        {formatXof(line.unitPrice)}
+                      </td>
+                      <td className="py-2 font-bold tabular-nums text-febis-red">
+                        {formatXof(line.lineTotal)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <form onSubmit={onSave} className="admin-panel admin-panel-premium grid gap-4 p-5 md:grid-cols-2">
         <label className="block text-sm font-semibold md:col-span-2">

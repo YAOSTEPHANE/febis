@@ -58,10 +58,10 @@ export const DEFAULT_HERO: HeroContent = {
   highlight: "un seul écosystème",
   description:
     "Plateforme digitale pour réserver, louer, construire et vendre — avec un pilotage unifié.",
-  primaryCtaLabel: "Explorer",
-  primaryCtaHref: "#categories",
-  secondaryCtaLabel: "Nous contacter",
-  secondaryCtaHref: "#contact",
+  primaryCtaLabel: "Voir les pôles",
+  primaryCtaHref: "#poles",
+  secondaryCtaLabel: "Réserver un séjour",
+  secondaryCtaHref: "#recherche-sejour",
 };
 
 export const DEFAULT_TRUST: TrustStat[] = [
@@ -117,7 +117,7 @@ export const DEFAULT_POLES: PoleContent[] = [
       "Prospects, devis, contrats et suivi d’avancement projet jusqu’à la livraison finale.",
     image: "/images/pole-btp.jpg",
     points: ["Opportunités commerciales", "Devis → contrat", "Workflow par étapes"],
-    href: "/#travaux",
+    href: "/btp",
   },
   {
     id: "evenementiel",
@@ -210,7 +210,7 @@ export type AdminNavItem = {
   mark: string;
   /** Affiché dans la sidebar (défaut true). false = uniquement via Paramètres */
   menu?: boolean;
-  /** Permission RBAC requise (CDC §4.10) */
+  /** Permission RBAC requise */
   permission:
     | "dashboard"
     | "vitrine"

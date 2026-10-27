@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createShopOrder } from "@/lib/boutique-data";
 import { PAYMENT_CHANNELS, type PaymentChannel } from "@/lib/types";
+import { guardPublicWrite } from "@/lib/public-write-guard";
 
 type Body = {
   clientName?: unknown;
@@ -17,6 +18,9 @@ function str(value: unknown): string {
 }
 
 export async function POST(request: NextRequest) {
+  const guarded = guardPublicWrite(request, "shopOrder");
+  if (!guarded.ok) return guarded.response;
+
   let body: Body;
   try {
     body = (await request.json()) as Body;

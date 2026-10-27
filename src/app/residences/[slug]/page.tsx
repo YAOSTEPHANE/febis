@@ -168,17 +168,29 @@ export default async function LodgingDetailPage({ params }: Props) {
             </Reveal>
 
             <Reveal delay={0.1}>
-              <div className="rounded-[1.5rem] border border-febis-ink/8 bg-gradient-to-br from-febis-ink to-[#3a1515] p-6 text-white md:p-7">
-                <p className="text-xs font-bold uppercase tracking-[0.22em] text-febis-amber">
-                  Signature FEBiS
-                </p>
-                <p className="mt-3 font-display text-2xl font-bold leading-snug">
-                  Calendrier en temps réel & parcours maîtrisé.
-                </p>
-                <p className="mt-3 text-sm leading-relaxed text-white/70">
-                  Disponible · Réservé · Maintenance — puis demande, confirmation,
-                  acompte, check-in/out et état des lieux.
-                </p>
+              <div className="space-y-4">
+                <div className="rounded-[1.5rem] border border-febis-ink/8 bg-gradient-to-br from-febis-ink to-[#3a1515] p-6 text-white md:p-7">
+                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-febis-amber">
+                    Signature FEBiS
+                  </p>
+                  <p className="mt-3 font-display text-2xl font-bold leading-snug">
+                    Calendrier en temps réel & parcours maîtrisé.
+                  </p>
+                  <p className="mt-3 text-sm leading-relaxed text-white/70">
+                    Disponible · Réservé · Maintenance — puis demande, confirmation,
+                    acompte, check-in/out et état des lieux.
+                  </p>
+                </div>
+                <div className="rounded-[1.5rem] border border-febis-ink/8 bg-white/70 p-5">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-febis-red">
+                    Annulation
+                  </p>
+                  <ul className="mt-2 space-y-1.5 text-sm text-febis-ink/65">
+                    <li>≥ 48 h : remboursement 100 % de l’acompte</li>
+                    <li>24–48 h : 50 % (frais admin 5 000 FCFA)</li>
+                    <li>&lt; 24 h : aucun remboursement</li>
+                  </ul>
+                </div>
               </div>
             </Reveal>
           </div>

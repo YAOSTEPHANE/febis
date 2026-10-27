@@ -74,6 +74,12 @@ export function serializeEventQuote(
     clientPhone: doc.clientPhone,
     eventDate: doc.eventDate,
     returnDate: doc.returnDate,
+    eventType: doc.eventType ?? "",
+    location: doc.location ?? "",
+    guestCount:
+      typeof doc.guestCount === "number" && Number.isFinite(doc.guestCount)
+        ? doc.guestCount
+        : null,
     message: doc.message ?? "",
     lines: doc.lines,
     rentalTotal: doc.rentalTotal,
@@ -336,6 +342,9 @@ export async function createEventQuote(input: {
   clientPhone: string;
   eventDate: string;
   returnDate: string;
+  eventType?: string;
+  location?: string;
+  guestCount?: number;
   message?: string;
   items: Array<{ slug: string; quantity: number }>;
   status?: QuoteStatus;
@@ -382,6 +391,14 @@ export async function createEventQuote(input: {
     clientPhone: input.clientPhone,
     eventDate: input.eventDate,
     returnDate: input.returnDate,
+    eventType: input.eventType || undefined,
+    location: input.location || undefined,
+    guestCount:
+      typeof input.guestCount === "number" &&
+      Number.isFinite(input.guestCount) &&
+      input.guestCount > 0
+        ? Math.round(input.guestCount)
+        : undefined,
     message: input.message,
     lines,
     rentalTotal,

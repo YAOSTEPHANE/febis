@@ -221,7 +221,7 @@ export type PaymentDoc = {
   invoiceId?: string;
   invoiceNumber?: string;
   notes?: string;
-  /** Opérateur MM : wave (cadrage CDC §4.9) */
+  /** Opérateur mobile money : wave */
   provider?: "wave" | "manual";
   providerSessionId?: string;
   providerCheckoutUrl?: string;
@@ -315,6 +315,13 @@ export type LodgingDoc = {
   updatedAt: Date;
 };
 
+export type ReservationInventoryItem = {
+  id: string;
+  label: string;
+  ok: boolean;
+  note?: string;
+};
+
 export type ReservationDoc = {
   _id?: string;
   lodgingId: string;
@@ -334,7 +341,12 @@ export type ReservationDoc = {
   message?: string;
   paymentChannel?: PaymentChannel | null;
   inventoryNotes?: string;
+  inventoryChecklist?: ReservationInventoryItem[];
   cancelled?: boolean;
+  cancellationRefundPercent?: number;
+  cancellationRefundAmount?: number;
+  cancellationAdminFee?: number;
+  cancellationPolicyLabel?: string;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -408,6 +420,9 @@ export type EventQuoteDoc = {
   clientPhone: string;
   eventDate: string;
   returnDate: string;
+  eventType?: string;
+  location?: string;
+  guestCount?: number;
   message?: string;
   lines: EventQuoteLine[];
   rentalTotal: number;
@@ -650,7 +665,7 @@ export type HrDocumentDoc = {
   createdAt: Date;
 };
 
-/* ——— Module BTP (CDC §4.3) ——— */
+/* ——— Module BTP ——— */
 
 export const BTP_STEPS = [
   "prospect",
@@ -661,6 +676,24 @@ export const BTP_STEPS = [
   "livraison",
 ] as const;
 export type BtpStep = (typeof BTP_STEPS)[number];
+
+export type BtpQuoteLine = {
+  code: string;
+  category: string;
+  label: string;
+  unit: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+};
+
+export type BtpHouseSpec = {
+  surfaceM2: number;
+  floors: number;
+  rooms: number;
+  finishLevel: "standard" | "confort" | "premium";
+  includeExterior: boolean;
+};
 
 export type BtpProjectDoc = {
   _id?: string;
@@ -681,6 +714,8 @@ export type BtpProjectDoc = {
   expectedEndDate?: string;
   deliveredAt?: string | null;
   notes?: string;
+  houseSpec?: BtpHouseSpec;
+  quoteLines?: BtpQuoteLine[];
   cancelled?: boolean;
   crmClientId?: string;
   crmProjectId?: string;

@@ -15,8 +15,9 @@ function createClient(): MongoClient {
   }
 
   return new MongoClient(uri, {
-    serverSelectionTimeoutMS: 2500,
-    connectTimeoutMS: 2500,
+    // Atlas (TLS + replica set) often needs more than 2.5s on slow links.
+    serverSelectionTimeoutMS: 10000,
+    connectTimeoutMS: 10000,
   });
 }
 

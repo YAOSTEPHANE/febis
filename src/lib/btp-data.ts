@@ -2,7 +2,12 @@ import "server-only";
 import { ObjectId, type Db, type Filter } from "mongodb";
 import { getDb } from "@/lib/mongodb";
 import { linkProjectAndInvoice, touchClient } from "@/lib/crm";
-import type { BtpProjectDoc, BtpStep } from "@/lib/types";
+import type {
+  BtpHouseSpec,
+  BtpProjectDoc,
+  BtpQuoteLine,
+  BtpStep,
+} from "@/lib/types";
 import {
   defaultProgressForStep,
   isBtpStep,
@@ -53,6 +58,8 @@ export function serializeBtpProject(
     expectedEndDate: doc.expectedEndDate ?? "",
     deliveredAt: doc.deliveredAt ?? null,
     notes: doc.notes ?? "",
+    houseSpec: doc.houseSpec ?? null,
+    quoteLines: Array.isArray(doc.quoteLines) ? doc.quoteLines : [],
     cancelled: Boolean(doc.cancelled),
     crmClientId: doc.crmClientId ?? null,
     crmProjectId: doc.crmProjectId ?? null,
@@ -141,6 +148,8 @@ export async function createBtpProject(input: {
   startDate?: string;
   expectedEndDate?: string;
   notes?: string;
+  houseSpec?: BtpHouseSpec;
+  quoteLines?: BtpQuoteLine[];
 }): Promise<SerializedBtpProject | null> {
   const title = input.title.trim();
   const clientName = input.clientName.trim();
@@ -154,7 +163,15 @@ export async function createBtpProject(input: {
 
   const now = new Date();
   const step: BtpStep = input.step && isBtpStep(input.step) ? input.step : "prospect";
-  const quoteAmount = Math.max(0, Number(input.quoteAmount) || 0);
+  const quoteLines =
+    input.quoteLines && input.quoteLines.length > 0 ? input.quoteLines : undefined;
+  const linesTotal = quoteLines
+    ? quoteLines.reduce((sum, line) => sum + line.lineTotal, 0)
+    : 0;
+  const quoteAmount = Math.max(
+    0,
+    linesTotal > 0 ? linesTotal : Number(input.quoteAmount) || 0,
+  );
 
   const doc: Omit<BtpProjectDoc, "_id"> = {
     reference: await nextBtpReference(db),
@@ -176,6 +193,8 @@ export async function createBtpProject(input: {
     expectedEndDate: input.expectedEndDate || undefined,
     deliveredAt: step === "livraison" ? now.toISOString().slice(0, 10) : null,
     notes: input.notes?.trim() || undefined,
+    houseSpec: input.houseSpec,
+    quoteLines,
     cancelled: false,
     createdAt: now,
     updatedAt: now,
@@ -281,6 +300,8 @@ export async function updateBtpProject(
     deliveredAt?: string | null;
     notes?: string;
     cancelled?: boolean;
+    houseSpec?: BtpHouseSpec | null;
+    quoteLines?: BtpQuoteLine[];
   },
 ): Promise<SerializedBtpProject | null> {
   const db = await tryDb();
@@ -343,6 +364,18 @@ export async function updateBtpProject(
   }
   if (typeof patch.cancelled === "boolean") {
     $set.cancelled = patch.cancelled;
+  }
+  if (patch.houseSpec !== undefined) {
+    $set.houseSpec = patch.houseSpec ?? undefined;
+  }
+  if (patch.quoteLines !== undefined) {
+    $set.quoteLines = patch.quoteLines;
+    if (patch.quoteAmount === undefined) {
+      $set.quoteAmount = Math.max(
+        0,
+        patch.quoteLines.reduce((sum, line) => sum + line.lineTotal, 0),
+      );
+    }
   }
 
   if (typeof patch.step === "string" && isBtpStep(patch.step)) {

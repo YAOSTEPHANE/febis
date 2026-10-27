@@ -174,14 +174,14 @@ export function TravauxAdminEditor({ initial }: { initial: RecentWork[] }) {
                       <button
                         type="button"
                         onClick={() => openEdit(item)}
-                        className="rounded-full border border-febis-ink/15 px-3 py-1.5 text-xs font-bold"
+                        className="admin-action-btn"
                       >
                         Modifier
                       </button>
                       <button
                         type="button"
                         onClick={() => void remove(item)}
-                        className="rounded-full border border-febis-red/25 px-3 py-1.5 text-xs font-bold text-febis-red"
+                        className="admin-action-btn is-danger"
                       >
                         Supprimer
                       </button>
@@ -215,14 +215,14 @@ export function TravauxAdminEditor({ initial }: { initial: RecentWork[] }) {
                   <button
                     type="button"
                     onClick={() => openEdit(item)}
-                    className="rounded-full border border-febis-ink/15 px-3 py-1.5 text-xs font-bold"
+                    className="admin-action-btn"
                   >
                     Modifier
                   </button>
                   <button
                     type="button"
                     onClick={() => void remove(item)}
-                    className="rounded-full border border-febis-red/25 px-3 py-1.5 text-xs font-bold text-febis-red"
+                    className="admin-action-btn is-danger"
                   >
                     Supprimer
                   </button>
@@ -283,7 +283,7 @@ export function TravauxAdminEditor({ initial }: { initial: RecentWork[] }) {
             <button
               type="button"
               onClick={closeForm}
-              className="rounded-full border border-febis-ink/15 px-4 py-2 text-sm font-bold text-febis-ink/60"
+              className="admin-btn-ghost"
             >
               Annuler
             </button>

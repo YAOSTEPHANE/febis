@@ -1,9 +1,9 @@
-import type { BtpStep } from "@/lib/types";
+import type { BtpHouseSpec, BtpQuoteLine, BtpStep } from "@/lib/types";
 import { BTP_STEPS } from "@/lib/types";
 import { formatXof } from "@/lib/crm-shared";
 
 export { formatXof, BTP_STEPS };
-export type { BtpStep };
+export type { BtpStep, BtpQuoteLine, BtpHouseSpec };
 
 export type SerializedBtpProject = {
   id: string;
@@ -24,6 +24,8 @@ export type SerializedBtpProject = {
   expectedEndDate: string;
   deliveredAt: string | null;
   notes: string;
+  houseSpec: BtpHouseSpec | null;
+  quoteLines: BtpQuoteLine[];
   cancelled: boolean;
   crmClientId: string | null;
   crmProjectId: string | null;

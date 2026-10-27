@@ -153,13 +153,20 @@ export function EvenementielQuoteDetailClient() {
     <>
       <AdminPageHeader
         title={`Devis · ${quote.clientName}`}
-        description={`${quote.eventDate} → ${quote.returnDate} · ${quote.clientEmail}`}
+        description={[
+          `${quote.eventDate} → ${quote.returnDate}`,
+          quote.eventType || null,
+          quote.location || null,
+          quote.clientEmail,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
       />
 
       <div className="mb-5 flex flex-wrap gap-3">
         <Link
           href="/admin/dashboard/evenementiel"
-          className="rounded-full border border-febis-ink/15 px-4 py-2 text-sm font-bold"
+          className="admin-btn-ghost"
         >
           ← Événementiel
         </Link>
@@ -183,17 +190,17 @@ export function EvenementielQuoteDetailClient() {
               disabled={saving}
               onClick={() => void setStatus(s)}
               className={cn(
-                "rounded-full px-3 py-1.5 text-xs font-bold transition",
+                "rounded-full px-3.5 py-1.5 text-xs font-bold leading-snug transition",
                 quote.status === s
-                  ? "bg-febis-gold-deep text-white"
-                  : "bg-febis-mist text-febis-ink/55",
+                  ? "bg-febis-ink text-white ring-2 ring-febis-gold/40"
+                  : "bg-febis-mist text-febis-ink/70",
               )}
             >
               {quoteStatusLabel(s)}
             </button>
           ))}
         </div>
-        <div className="mt-4 grid gap-2 text-sm sm:grid-cols-3">
+        <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
           <p>
             <span className="text-febis-ink/45">Location</span>
             <br />
@@ -209,6 +216,27 @@ export function EvenementielQuoteDetailClient() {
             <br />
             <strong>{quote.clientPhone}</strong>
           </p>
+          {quote.eventType ? (
+            <p>
+              <span className="text-febis-ink/45">Type</span>
+              <br />
+              <strong>{quote.eventType}</strong>
+            </p>
+          ) : null}
+          {quote.location ? (
+            <p>
+              <span className="text-febis-ink/45">Lieu</span>
+              <br />
+              <strong>{quote.location}</strong>
+            </p>
+          ) : null}
+          {quote.guestCount != null ? (
+            <p>
+              <span className="text-febis-ink/45">Invités</span>
+              <br />
+              <strong>~{quote.guestCount}</strong>
+            </p>
+          ) : null}
         </div>
         {quote.message ? (
           <p className="mt-3 text-sm text-febis-ink/70">{quote.message}</p>

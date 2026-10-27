@@ -19,7 +19,7 @@ export default async function BoutiquePage() {
 
   return (
     <>
-      <section className="relative min-h-[56svh] overflow-hidden bg-febis-ink pt-20">
+      <section className="list-hero relative min-h-[56svh]">
         <div className="absolute inset-0">
           <Image
             src="/images/pole-boutique.jpg"
@@ -29,12 +29,14 @@ export default async function BoutiquePage() {
             sizes="100vw"
             className="object-cover ken-burns"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#1a1210]/88) via-[#1a1210]/55) to-[#d71920]/30" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#1a1210]/75 via-transparent to-[#1a1210]/25" />
+          <div className="list-hero-overlay" />
         </div>
         <div className="relative mx-auto flex min-h-[56svh] max-w-7xl flex-col justify-end px-5 pb-14 md:justify-center md:px-8 md:pb-16">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/50">
+            Accueil / Boutique
+          </p>
           <p className="mb-4 text-xs font-bold uppercase tracking-[0.28em] text-febis-amber">
-            Module CDC · Boutique
+            Boutique FEBiS
           </p>
           <h1 className="font-display max-w-3xl text-[clamp(2.3rem,5.5vw,4.2rem)] font-extrabold leading-[0.95] tracking-tight text-white">
             Catalogue live.{" "}
@@ -58,11 +60,11 @@ export default async function BoutiquePage() {
         </div>
       </section>
 
-      <section className="border-b border-febis-ink/8 bg-white/40 py-12">
-        <div className="mx-auto grid max-w-7xl gap-4 px-5 sm:grid-cols-2 lg:grid-cols-4 md:px-8">
+      <section className="border-b border-febis-ink/8 bg-white/30 py-10 backdrop-blur-sm md:py-12">
+        <div className="mx-auto grid max-w-7xl gap-3 px-5 sm:grid-cols-2 lg:grid-cols-4 md:px-8">
           {BOUTIQUE_PROCESS.map((step, index) => (
             <Reveal key={step.title} delay={index * 0.05}>
-              <div className="border-l-2 border-febis-red/70 pl-4">
+              <div className="glass-panel h-full p-4 sm:p-5">
                 <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-febis-red">
                   {String(index + 1).padStart(2, "0")}
                 </p>

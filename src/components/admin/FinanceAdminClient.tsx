@@ -117,7 +117,7 @@ export function FinanceAdminClient() {
     <>
       <AdminPageHeader
         title="Finance"
-        description="CDC §4.7 — revenus & dépenses par activité, canaux de paiement, état des impayés."
+        description="Revenus & dépenses par activité, canaux de paiement, état des impayés."
       />
 
       <div className="mb-5 flex flex-wrap gap-3">

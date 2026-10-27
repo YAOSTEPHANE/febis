@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createEventQuote } from "@/lib/evenementiel-data";
+import { guardPublicWrite } from "@/lib/public-write-guard";
 
 type Body = {
   clientName?: unknown;
@@ -7,6 +8,9 @@ type Body = {
   clientPhone?: unknown;
   eventDate?: unknown;
   returnDate?: unknown;
+  eventType?: unknown;
+  location?: unknown;
+  guestCount?: unknown;
   message?: unknown;
   items?: unknown;
 };
@@ -16,6 +20,9 @@ function str(value: unknown): string {
 }
 
 export async function POST(request: NextRequest) {
+  const guarded = guardPublicWrite(request, "eventQuote");
+  if (!guarded.ok) return guarded.response;
+
   let body: Body;
   try {
     body = (await request.json()) as Body;
@@ -28,7 +35,17 @@ export async function POST(request: NextRequest) {
   const clientPhone = str(body.clientPhone);
   const eventDate = str(body.eventDate);
   const returnDate = str(body.returnDate);
+  const eventType = str(body.eventType);
+  const location = str(body.location);
   const message = str(body.message);
+
+  let guestCount: number | undefined;
+  if (typeof body.guestCount === "number" && Number.isFinite(body.guestCount)) {
+    guestCount = body.guestCount;
+  } else if (typeof body.guestCount === "string" && body.guestCount.trim()) {
+    const n = Number.parseInt(body.guestCount, 10);
+    if (Number.isFinite(n)) guestCount = n;
+  }
 
   if (clientName.length < 2) {
     return NextResponse.json({ error: "Nom invalide." }, { status: 400 });
@@ -39,12 +56,30 @@ export async function POST(request: NextRequest) {
   if (clientPhone.length < 8) {
     return NextResponse.json({ error: "Téléphone invalide." }, { status: 400 });
   }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(eventDate) || !/^\d{4}-\d{2}-\d{2}$/.test(returnDate)) {
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(eventDate) ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(returnDate)
+  ) {
     return NextResponse.json({ error: "Dates invalides." }, { status: 400 });
   }
   if (returnDate <= eventDate) {
     return NextResponse.json(
       { error: "La date de retour doit être après la date d’événement." },
+      { status: 400 },
+    );
+  }
+  if (location.length < 2) {
+    return NextResponse.json(
+      { error: "Indiquez le lieu de l’événement." },
+      { status: 400 },
+    );
+  }
+  if (
+    guestCount !== undefined &&
+    (!Number.isFinite(guestCount) || guestCount < 1 || guestCount > 100000)
+  ) {
+    return NextResponse.json(
+      { error: "Nombre d’invités invalide." },
       { status: 400 },
     );
   }
@@ -83,6 +118,9 @@ export async function POST(request: NextRequest) {
       clientPhone,
       eventDate,
       returnDate,
+      eventType: eventType || undefined,
+      location,
+      guestCount,
       message: message || undefined,
       items,
     });
@@ -90,7 +128,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const msg =
       error instanceof Error ? error.message : "Impossible de créer le devis.";
-    const status = msg.includes("Stock") || msg.includes("maintenance") ? 409 : 400;
+    const status =
+      msg.includes("Stock") || msg.includes("maintenance") ? 409 : 400;
     return NextResponse.json({ error: msg }, { status });
   }
 }

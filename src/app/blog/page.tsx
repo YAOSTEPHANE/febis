@@ -19,14 +19,32 @@ export default async function BlogPage() {
   const posts = (await listBlogPostsAdmin()).sort((a, b) =>
     b.date.localeCompare(a.date),
   );
+  const [featured, ...rest] = posts;
 
   return (
     <>
       <PublicHeader />
       <main>
-        <section className="relative overflow-hidden bg-febis-ink pt-28 pb-16 text-white">
-          <div className="absolute inset-0 bg-gradient-to-br from-febis-red/30 via-transparent to-febis-gold/20" />
-          <div className="relative mx-auto max-w-7xl px-5 md:px-8">
+        <section className="list-hero relative min-h-[48svh]">
+          {featured ? (
+            <div className="absolute inset-0">
+              <Image
+                src={featured.image}
+                alt=""
+                fill
+                priority
+                sizes="100vw"
+                className="object-cover ken-burns"
+              />
+              <div className="list-hero-overlay" />
+            </div>
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-febis-red/30 via-febis-ink to-febis-gold/20" />
+          )}
+          <div className="relative mx-auto flex min-h-[48svh] max-w-7xl flex-col justify-end px-5 pb-14 md:px-8 md:pb-16">
+            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/50">
+              Accueil / Blog
+            </p>
             <p className="text-xs font-bold uppercase tracking-[0.28em] text-febis-amber">
               Blog FEBiS
             </p>
@@ -41,43 +59,75 @@ export default async function BlogPage() {
           </div>
         </section>
 
-        <section className="py-16 md:py-20">
-          <div className="mx-auto grid max-w-7xl gap-8 px-5 md:grid-cols-2 md:px-8">
-            {posts.map((post, index) => (
-              <Reveal key={post.slug} delay={index * 0.06}>
-                <article className="group overflow-hidden rounded-[1.35rem] border border-febis-ink/8 bg-white/70 shadow-[0_20px_50px_rgba(26,18,16,0.05)]">
-                  <Link href={`/blog/${post.slug}`} className="block">
-                    <div className="relative aspect-[16/9] overflow-hidden">
+        <section className="section-pad">
+          <div className="mx-auto max-w-7xl px-5 md:px-8">
+            {featured ? (
+              <div className="grid gap-8 lg:grid-cols-[1.35fr_0.85fr]">
+                <Reveal>
+                  <article className="group overflow-hidden rounded-[1.35rem]">
+                    <Link href={`/blog/${featured.slug}`} className="relative block min-h-[340px] sm:min-h-[420px]">
                       <Image
-                        src={post.image}
-                        alt={post.title}
+                        src={featured.image}
+                        alt={featured.title}
                         fill
-                        sizes="(max-width: 768px) 100vw, 50vw"
+                        sizes="(max-width: 1024px) 100vw, 60vw"
                         className="object-cover transition-transform duration-700 group-hover:scale-105"
                       />
-                    </div>
-                    <div className="p-6">
-                      <div className="flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.14em] text-febis-ink/45">
-                        <span className="text-febis-red">
-                          {blogCategoryLabel(post.category)}
-                        </span>
-                        <span>·</span>
-                        <span>{formatBlogDate(post.date)}</span>
-                        <span>·</span>
-                        <span>{post.readMinutes} min</span>
+                      <div className="absolute inset-0 bg-gradient-to-t from-febis-ink/90 via-febis-ink/30 to-transparent" />
+                      <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">
+                        <div className="flex flex-wrap gap-3 text-xs font-semibold uppercase tracking-[0.14em] text-white/60">
+                          <span className="text-febis-amber">
+                            {blogCategoryLabel(featured.category)}
+                          </span>
+                          <span>{formatBlogDate(featured.date)}</span>
+                          <span>{featured.readMinutes} min</span>
+                        </div>
+                        <h2 className="mt-3 font-display text-2xl font-extrabold text-white sm:text-3xl md:text-4xl">
+                          {featured.title}
+                        </h2>
+                        <p className="mt-3 max-w-xl text-sm text-white/70 sm:text-base">
+                          {featured.excerpt}
+                        </p>
                       </div>
-                      <h2 className="mt-3 font-display text-2xl font-bold text-febis-ink">
-                        {post.title}
-                      </h2>
-                      <p className="mt-3 text-febis-ink/60">{post.excerpt}</p>
-                      <span className="mt-5 inline-block text-sm font-bold text-febis-red">
-                        Lire l’article →
-                      </span>
-                    </div>
-                  </Link>
-                </article>
-              </Reveal>
-            ))}
+                    </Link>
+                  </article>
+                </Reveal>
+
+                <div className="flex flex-col gap-4">
+                  {rest.map((post, index) => (
+                    <Reveal key={post.slug} delay={index * 0.05}>
+                      <Link
+                        href={`/blog/${post.slug}`}
+                        className="glass-panel is-interactive group flex gap-4 p-3 sm:p-4"
+                      >
+                        <div className="relative h-24 w-28 shrink-0 overflow-hidden rounded-xl sm:h-28 sm:w-32">
+                          <Image
+                            src={post.image}
+                            alt={post.title}
+                            fill
+                            sizes="128px"
+                            className="object-cover transition-transform duration-500 group-hover:scale-105"
+                          />
+                        </div>
+                        <div className="min-w-0 flex-1 py-1">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-febis-orange">
+                            {blogCategoryLabel(post.category)} · {formatBlogDate(post.date)}
+                          </p>
+                          <h2 className="mt-1 line-clamp-2 font-display text-lg font-bold text-febis-ink">
+                            {post.title}
+                          </h2>
+                          <p className="mt-1 line-clamp-2 text-sm text-febis-ink/55">
+                            {post.excerpt}
+                          </p>
+                        </div>
+                      </Link>
+                    </Reveal>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="text-center text-febis-ink/55">Aucun article pour le moment.</p>
+            )}
           </div>
         </section>
       </main>

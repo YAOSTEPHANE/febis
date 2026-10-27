@@ -5,11 +5,15 @@ import { FormEvent, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { AdminPageHeader, AdminSaveButton } from "@/components/admin/AdminForms";
 import {
+  CANCELLATION_POLICY_PUBLIC,
+  DEFAULT_INVENTORY_CHECKLIST,
   PAYMENT_CHANNELS,
   RESERVATION_STEPS,
+  computeCancellationRefund,
   formatXof,
   paymentChannelLabel,
   stepLabel,
+  type InventoryChecklistItem,
   type SerializedReservation,
 } from "@/lib/residences-shared";
 import { cn } from "@/lib/cn";
@@ -19,6 +23,7 @@ export function ReservationDetailClient() {
   const [reservation, setReservation] = useState<SerializedReservation | null>(
     null,
   );
+  const [checklist, setChecklist] = useState<InventoryChecklistItem[]>([]);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -33,7 +38,13 @@ export function ReservationDetailClient() {
         error?: string;
       };
       if (!res.ok) throw new Error(json.error ?? "Introuvable");
-      setReservation(json.reservation ?? null);
+      const next = json.reservation ?? null;
+      setReservation(next);
+      setChecklist(
+        next?.inventoryChecklist?.length
+          ? next.inventoryChecklist
+          : DEFAULT_INVENTORY_CHECKLIST.map((item) => ({ ...item })),
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur");
     } finally {
@@ -73,10 +84,53 @@ export function ReservationDetailClient() {
     const data = new FormData(event.currentTarget);
     await patch({
       inventoryNotes: data.get("inventoryNotes"),
+      inventoryChecklist: checklist,
       message: data.get("message"),
       guests: data.get("guests"),
       paymentChannel: data.get("paymentChannel") || null,
     });
+  }
+
+  async function confirmDepositPayment() {
+    if (!reservation) return;
+    const channel = reservation.paymentChannel || "wave";
+    setSaving(true);
+    setError("");
+    try {
+      const intentRes = await fetch("/api/payments/initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceType: "reservation",
+          sourceId: reservation.id,
+          amount: reservation.depositAmount,
+          channel,
+          title: `Acompte · ${reservation.lodgingTitle}`,
+          clientName: reservation.guestName,
+          clientEmail: reservation.guestEmail,
+          clientPhone: reservation.guestPhone,
+        }),
+      });
+      const intentJson = (await intentRes.json()) as {
+        error?: string;
+        intent?: { id: string };
+      };
+      if (!intentRes.ok || !intentJson.intent) {
+        throw new Error(intentJson.error ?? "Intent impossible");
+      }
+      const conf = await fetch("/api/admin/paiements/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ intentId: intentJson.intent.id }),
+      });
+      const confJson = (await conf.json()) as { error?: string };
+      if (!conf.ok) throw new Error(confJson.error ?? "Confirmation impossible");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (loading) {
@@ -121,10 +175,42 @@ export function ReservationDetailClient() {
       ) : null}
 
       {reservation.cancelled ? (
-        <p className="mb-4 rounded-xl border border-febis-ink/15 bg-febis-ink/5 px-4 py-3 text-sm font-semibold text-febis-ink/70">
-          Cette réservation est annulée — les dates sont libérées.
-        </p>
-      ) : null}
+        <div className="mb-4 rounded-xl border border-febis-ink/15 bg-febis-ink/5 px-4 py-3 text-sm text-febis-ink/70">
+          <p className="font-semibold">
+            Réservation annulée — les dates sont libérées.
+          </p>
+          {reservation.cancellationRefund ? (
+            <p className="mt-1 text-xs">
+              {reservation.cancellationRefund.policyLabel} · Remboursement{" "}
+              {formatXof(reservation.cancellationRefund.refundAmount)}
+              {reservation.cancellationRefund.adminFee
+                ? ` (frais ${formatXof(reservation.cancellationRefund.adminFee)})`
+                : ""}
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <div className="mb-4 rounded-xl border border-febis-amber/25 bg-febis-amber/10 px-4 py-3 text-xs text-febis-ink/70">
+          <p className="font-bold uppercase tracking-wider text-febis-gold-deep">
+            Politique d’annulation
+          </p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-4">
+            {CANCELLATION_POLICY_PUBLIC.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+          <p className="mt-2 font-semibold">
+            Si annulation maintenant :{" "}
+            {(() => {
+              const preview = computeCancellationRefund({
+                checkIn: reservation.checkIn,
+                depositAmount: reservation.depositAmount,
+              });
+              return `${preview.policyLabel} → ${formatXof(preview.refundAmount)}`;
+            })()}
+          </p>
+        </div>
+      )}
 
       <div className="mb-6 admin-panel admin-panel-premium p-5">
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-febis-gold-deep">
@@ -251,11 +337,49 @@ export function ReservationDetailClient() {
               className="field-premium mt-1.5"
             />
           </label>
+          <div>
+            <p className="text-sm font-semibold">Checklist état des lieux</p>
+            <ul className="mt-2 space-y-2">
+              {checklist.map((item, index) => (
+                <li
+                  key={item.id}
+                  className="rounded-xl border border-febis-ink/10 bg-white/70 px-3 py-2"
+                >
+                  <label className="flex items-center gap-2 text-sm font-semibold">
+                    <input
+                      type="checkbox"
+                      checked={item.ok}
+                      onChange={(e) => {
+                        setChecklist((prev) =>
+                          prev.map((row, i) =>
+                            i === index ? { ...row, ok: e.target.checked } : row,
+                          ),
+                        );
+                      }}
+                    />
+                    {item.label}
+                  </label>
+                  <input
+                    value={item.note}
+                    onChange={(e) => {
+                      setChecklist((prev) =>
+                        prev.map((row, i) =>
+                          i === index ? { ...row, note: e.target.value } : row,
+                        ),
+                      );
+                    }}
+                    placeholder="Observation…"
+                    className="field-premium mt-1.5 text-xs"
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
           <label className="block text-sm font-semibold">
             Notes état des lieux / inventaire
             <textarea
               name="inventoryNotes"
-              rows={4}
+              rows={3}
               defaultValue={reservation.inventoryNotes}
               placeholder="Dégradations, caution, observations…"
               className="field-premium mt-1.5"
@@ -266,12 +390,30 @@ export function ReservationDetailClient() {
       </div>
 
       <div className="mt-6 flex flex-wrap gap-3">
+        {!reservation.cancelled && reservation.step === "demande" ? (
+          <button
+            type="button"
+            disabled={saving || reservation.depositAmount < 1}
+            onClick={() => void confirmDepositPayment()}
+            className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
+          >
+            Confirmer acompte ({formatXof(reservation.depositAmount)})
+          </button>
+        ) : null}
         {!reservation.cancelled ? (
           <button
             type="button"
             disabled={saving}
             onClick={() => {
-              if (window.confirm("Annuler cette réservation et libérer les dates ?")) {
+              const preview = computeCancellationRefund({
+                checkIn: reservation.checkIn,
+                depositAmount: reservation.depositAmount,
+              });
+              if (
+                window.confirm(
+                  `Annuler et libérer les dates ?\n${preview.policyLabel}\nRemboursement estimé : ${formatXof(preview.refundAmount)}`,
+                )
+              ) {
                 void patch({ cancelled: true });
               }
             }}
@@ -284,14 +426,14 @@ export function ReservationDetailClient() {
             type="button"
             disabled={saving}
             onClick={() => void patch({ cancelled: false })}
-            className="rounded-full border border-febis-ink/15 px-4 py-2 text-sm font-bold"
+            className="admin-btn-ghost"
           >
             Réactiver
           </button>
         )}
         <Link
           href={`/admin/dashboard/facturation`}
-          className="rounded-full border border-febis-ink/15 px-4 py-2 text-sm font-bold text-febis-ink/70"
+          className="admin-btn-ghost"
         >
           Facturer ce séjour
         </Link>

@@ -24,6 +24,8 @@ import {
   notifyReservationUpdated,
 } from "@/lib/notifications";
 import {
+  computeCancellationRefund,
+  DEFAULT_INVENTORY_CHECKLIST,
   isLodgingCategory,
   isLodgingStatus,
   isReservationStep,
@@ -76,7 +78,25 @@ export function serializeReservation(
     message: doc.message ?? "",
     paymentChannel: doc.paymentChannel ?? null,
     inventoryNotes: doc.inventoryNotes ?? "",
+    inventoryChecklist: Array.isArray(doc.inventoryChecklist)
+      ? doc.inventoryChecklist.map((item) => ({
+          id: item.id,
+          label: item.label,
+          ok: Boolean(item.ok),
+          note: item.note ?? "",
+        }))
+      : [],
     cancelled: Boolean(doc.cancelled),
+    cancellationRefund:
+      doc.cancelled && typeof doc.cancellationRefundPercent === "number"
+        ? {
+            refundPercent: doc.cancellationRefundPercent,
+            refundAmount: doc.cancellationRefundAmount ?? 0,
+            adminFee: doc.cancellationAdminFee ?? 0,
+            hoursBeforeCheckIn: 0,
+            policyLabel: doc.cancellationPolicyLabel ?? "",
+          }
+        : null,
     createdAt: toIso(doc.createdAt) ?? new Date(0).toISOString(),
     updatedAt: toIso(doc.updatedAt) ?? new Date(0).toISOString(),
   };
@@ -376,6 +396,12 @@ export async function updateReservation(
     step?: ReservationStep;
     paymentChannel?: PaymentChannel | null;
     inventoryNotes?: string;
+    inventoryChecklist?: {
+      id: string;
+      label: string;
+      ok: boolean;
+      note?: string;
+    }[];
     message?: string;
     cancelled?: boolean;
     guests?: number;
@@ -448,8 +474,33 @@ export async function updateReservation(
   if (patch.inventoryNotes !== undefined) {
     $set.inventoryNotes = patch.inventoryNotes.trim();
   }
+  if (patch.inventoryChecklist !== undefined) {
+    $set.inventoryChecklist = patch.inventoryChecklist.map((item) => ({
+      id: item.id,
+      label: item.label,
+      ok: Boolean(item.ok),
+      note: item.note?.trim() || undefined,
+    }));
+  }
   if (patch.message !== undefined) $set.message = patch.message.trim();
-  if (patch.cancelled !== undefined) $set.cancelled = patch.cancelled;
+  if (patch.cancelled !== undefined) {
+    $set.cancelled = patch.cancelled;
+    if (patch.cancelled) {
+      const refund = computeCancellationRefund({
+        checkIn: existing.checkIn,
+        depositAmount: existing.depositAmount,
+      });
+      $set.cancellationRefundPercent = refund.refundPercent;
+      $set.cancellationRefundAmount = refund.refundAmount;
+      $set.cancellationAdminFee = refund.adminFee;
+      $set.cancellationPolicyLabel = refund.policyLabel;
+    }
+  }
+  if (patch.step === "etat_des_lieux" && !existing.inventoryChecklist?.length) {
+    $set.inventoryChecklist = DEFAULT_INVENTORY_CHECKLIST.map((item) => ({
+      ...item,
+    }));
+  }
   if (patch.guests !== undefined) {
     $set.guests = Math.max(1, Math.min(20, Math.round(patch.guests)));
   }

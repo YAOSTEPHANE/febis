@@ -54,7 +54,7 @@ export default async function ResidencesPage({ searchParams }: Props) {
     <>
       <PublicHeader />
       <main>
-        <section className="relative min-h-[70svh] overflow-hidden bg-febis-ink pt-20">
+        <section className="list-hero relative min-h-[70svh]">
           <div className="absolute inset-0">
             <Image
               src="/images/residences-hero.jpg"
@@ -64,8 +64,7 @@ export default async function ResidencesPage({ searchParams }: Props) {
               sizes="100vw"
               className="object-cover ken-burns"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#1a1210]/88) via-[#1a1210]/55) to-[#d71920]/30" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#1a1210]/75 via-transparent to-[#1a1210]/25" />
+            <div className="list-hero-overlay" />
           </div>
           <div className="fan-layers opacity-70 max-md:opacity-40" aria-hidden>
             <span />
@@ -74,8 +73,11 @@ export default async function ResidencesPage({ searchParams }: Props) {
           </div>
 
           <div className="relative mx-auto flex min-h-[70svh] max-w-7xl flex-col justify-end px-5 pb-16 md:justify-center md:px-8 md:pb-20">
+            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/50">
+              Accueil / Résidences
+            </p>
             <p className="mb-4 text-xs font-bold uppercase tracking-[0.28em] text-febis-amber">
-              Module CDC · Résidences
+              Résidences meublées
             </p>
             <h1 className="font-display max-w-3xl text-[clamp(2.4rem,6vw,4.5rem)] font-extrabold leading-[0.95] tracking-tight text-white">
               Séjourner avec{" "}

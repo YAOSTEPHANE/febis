@@ -53,13 +53,13 @@ export function HeroSearchBar() {
   return (
     <section
       id="recherche-sejour"
-      className="hero-search relative z-20 -mt-6 w-full px-4 pb-1 sm:-mt-8 sm:px-5 md:-mt-10 lg:px-8"
+      className="hero-search relative z-20 -mt-5 w-full px-4 pb-1 xs:-mt-6 xs:px-5 sm:-mt-8 md:-mt-10 md:px-6 lg:px-8"
     >
       <form
         onSubmit={onSubmit}
-        className="hero-search-panel mx-auto grid max-w-7xl gap-2 rounded-[1.35rem] border border-febis-ink/8 bg-white p-2.5 shadow-[0_28px_70px_rgba(26,18,16,0.14)] sm:gap-3 sm:p-3 md:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_auto] lg:gap-0 lg:p-2"
+        className="hero-search-panel glass-panel mx-auto grid max-w-7xl grid-cols-1 gap-2 !rounded-[1.35rem] border border-febis-ink/8 bg-white/85 p-2.5 shadow-[0_28px_70px_rgba(26,18,16,0.14)] sm:grid-cols-2 sm:gap-3 sm:p-3 lg:grid-cols-[1.2fr_1fr_1fr_auto] lg:gap-0 lg:p-2"
       >
-        <label className="hero-search-field md:col-span-2 lg:col-span-1 lg:rounded-l-[1.1rem]">
+        <label className="hero-search-field sm:col-span-2 lg:col-span-1 lg:rounded-l-[1.1rem]">
           <span className="hero-search-label">Destination</span>
           <select
             value={destination}
@@ -105,10 +105,10 @@ export function HeroSearchBar() {
           />
         </label>
 
-        <div className="flex items-stretch p-1 md:col-span-2 lg:col-span-1 lg:pl-2">
+        <div className="flex items-stretch p-1 sm:col-span-2 lg:col-span-1 lg:pl-2">
           <button
             type="submit"
-            className="cta-premium w-full !rounded-[1rem] lg:min-w-[160px]"
+            className="cta-premium w-full !min-h-12 !rounded-[1rem] lg:min-w-[160px]"
           >
             Rechercher
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>

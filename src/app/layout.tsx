@@ -1,18 +1,6 @@
 import type { Metadata } from "next";
-import { Figtree, Outfit } from "next/font/google";
+import { CookieConsent } from "@/components/CookieConsent";
 import "./globals.css";
-
-const outfit = Outfit({
-  variable: "--font-outfit",
-  subsets: ["latin"],
-  weight: ["600", "700", "800"],
-});
-
-const figtree = Figtree({
-  variable: "--font-figtree",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-});
 
 function siteUrl(): URL {
   const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
@@ -49,10 +37,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="fr"
-      className={`${outfit.variable} ${figtree.variable} h-full antialiased`}
+      data-scroll-behavior="smooth"
+      className="h-full antialiased"
     >
       <body className="site-atmosphere min-h-full font-sans text-foreground">
         {children}
+        <CookieConsent />
       </body>
     </html>
   );

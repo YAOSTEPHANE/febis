@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createReservationDemande } from "@/lib/residences-data";
 import { PAYMENT_CHANNELS } from "@/lib/types";
+import { guardPublicWrite } from "@/lib/public-write-guard";
 
 type Body = {
   lodgingSlug?: unknown;
@@ -19,6 +20,9 @@ function str(value: unknown): string {
 }
 
 export async function POST(request: NextRequest) {
+  const guarded = guardPublicWrite(request, "reservation");
+  if (!guarded.ok) return guarded.response;
+
   let body: Body;
   try {
     body = (await request.json()) as Body;

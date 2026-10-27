@@ -53,6 +53,9 @@ export type SerializedEventQuote = {
   clientPhone: string;
   eventDate: string;
   returnDate: string;
+  eventType: string;
+  location: string;
+  guestCount: number | null;
   message: string;
   lines: EventQuoteLine[];
   rentalTotal: number;

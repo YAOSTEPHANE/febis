@@ -38,7 +38,7 @@ export {
   projectStatusLabel,
 } from "@/lib/crm-shared";
 
-/** Historique conservé par fiche client (CDC §4.6) */
+/** Historique conservé par fiche client */
 const INTERACTION_HISTORY_LIMIT = 500;
 
 export type ClientTouchInput = {
@@ -207,7 +207,7 @@ async function findUniqueClient(
 }
 
 /**
- * Upsert client unique + journalise une interaction (CRM transversal CDC §4.6).
+ * Upsert client unique + journalise une interaction (CRM transversal).
  * Partagé par résidences, BTP, événementiel, boutique, contact, facturation.
  */
 export async function touchClient(input: ClientTouchInput): Promise<{

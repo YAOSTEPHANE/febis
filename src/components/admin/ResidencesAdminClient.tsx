@@ -225,23 +225,21 @@ export function ResidencesAdminClient() {
       <AdminPageHeader
         title="Résidences"
         description="Gestion des logements : fiches, photos, tarifs, capacité — ajout, modification et suppression."
+        eyebrow="Activité"
+        actions={
+          <>
+            <button type="button" onClick={openCreate} className="cta-premium text-sm">
+              + Ajouter un logement
+            </button>
+            <Link href="/admin/dashboard/reservations" className="admin-btn-ghost">
+              Réservations →
+            </Link>
+            <Link href="/residences" className="admin-btn-ghost" target="_blank">
+              Voir le site ↗
+            </Link>
+          </>
+        }
       />
-
-      <div className="mb-5 flex flex-wrap gap-3">
-        <button type="button" onClick={openCreate} className="cta-premium">
-          + Ajouter un logement
-        </button>
-        <Link href="/admin/dashboard/reservations" className="rounded-full border border-febis-ink/15 px-4 py-2 text-sm font-bold">
-          Réservations →
-        </Link>
-        <Link
-          href="/residences"
-          className="rounded-full border border-febis-ink/15 px-4 py-2 text-sm font-bold"
-          target="_blank"
-        >
-          Voir le site ↗
-        </Link>
-      </div>
 
       {error ? (
         <p className="mb-4 rounded-xl border border-febis-red/20 bg-febis-red/5 px-4 py-3 text-sm font-semibold text-febis-red">
@@ -254,9 +252,11 @@ export function ResidencesAdminClient() {
         </p>
       ) : null}
 
-      <div className="admin-panel overflow-hidden">
-        <div className="border-b border-febis-ink/8 px-5 py-3 text-sm font-semibold text-febis-ink/70">
-          {loading ? "Chargement…" : `${lodgings.length} logement(s)`}
+      <div className="admin-panel admin-panel-premium overflow-hidden">
+        <div className="admin-panel-toolbar">
+          <span>
+            {loading ? "Chargement…" : `${lodgings.length} logement(s)`}
+          </span>
         </div>
         <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[720px] text-left text-sm">
@@ -309,14 +309,14 @@ export function ResidencesAdminClient() {
                       <button
                         type="button"
                         onClick={() => openEdit(item)}
-                        className="rounded-full border border-febis-ink/15 px-3 py-1.5 text-xs font-bold"
+                        className="admin-action-btn"
                       >
                         Modifier
                       </button>
                       <button
                         type="button"
                         onClick={() => void onDelete(item)}
-                        className="rounded-full border border-febis-red/25 px-3 py-1.5 text-xs font-bold text-febis-red"
+                        className="admin-action-btn is-danger"
                       >
                         Supprimer
                       </button>
@@ -339,14 +339,14 @@ export function ResidencesAdminClient() {
                 <button
                   type="button"
                   onClick={() => openEdit(item)}
-                  className="rounded-full border border-febis-ink/15 px-3 py-1.5 text-xs font-bold"
+                  className="admin-action-btn"
                 >
                   Modifier
                 </button>
                 <button
                   type="button"
                   onClick={() => void onDelete(item)}
-                  className="rounded-full border border-febis-red/25 px-3 py-1.5 text-xs font-bold text-febis-red"
+                  className="admin-action-btn is-danger"
                 >
                   Supprimer
                 </button>
@@ -402,7 +402,7 @@ export function ResidencesAdminClient() {
             <button
               type="button"
               onClick={closeForm}
-              className="rounded-full border border-febis-ink/15 px-4 py-2 text-sm font-bold text-febis-ink/60"
+              className="admin-btn-ghost"
             >
               Annuler
             </button>
