@@ -18,18 +18,18 @@ function createClient(): MongoClient {
     // Atlas (TLS + replica set) often needs more than 2.5s on slow links.
     serverSelectionTimeoutMS: 10000,
     connectTimeoutMS: 10000,
+    // Keep serverless pools small — dashboard loads open many parallel getDb() calls.
+    maxPoolSize: 10,
   });
 }
 
 function getClientPromise(): Promise<MongoClient> {
-  if (process.env.NODE_ENV === "development") {
-    if (!global._mongoClientPromise) {
-      global._mongoClientPromise = createClient().connect();
-    }
-    return global._mongoClientPromise;
+  // Reuse one client across warm serverless invocations (and HMR in dev).
+  // Creating a new connect() per call exhausts Atlas connection limits on Vercel.
+  if (!global._mongoClientPromise) {
+    global._mongoClientPromise = createClient().connect();
   }
-
-  return createClient().connect();
+  return global._mongoClientPromise;
 }
 
 export async function getDb(): Promise<Db> {

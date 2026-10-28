@@ -161,7 +161,8 @@ export default async function AdminDashboardPage() {
         ? new Date(doc.createdAt as string | Date).toISOString()
         : "",
     }));
-  } catch {
+  } catch (error) {
+    console.error("Dashboard Mongo/load error:", error);
     dbOk = false;
   }
 
